@@ -1,4 +1,4 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ export function Room() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [shareAudio, setShareAudio] = useState(false);
+  const [shareMic, setShareMic] = useState(false);
   
   if (!roomId) return null;
 
@@ -19,6 +20,10 @@ export function Room() {
     error,
     startBroadcasting,
     stopBroadcasting,
+    isMicMuted,
+    toggleMic,
+    displaySurface,
+    switchDisplaySurface
   } = useWebRTC(roomId);
 
   const isBroadcaster = role === 'broadcaster';
@@ -71,15 +76,40 @@ export function Room() {
           </div>
 
           {isBroadcaster ? (
-            <button
-              onClick={stopBroadcasting}
-              className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all flex items-center gap-2"
-            >
-              <MonitorX className="w-4 h-4" />
-              <span className="hidden sm:inline">Stop Share</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleMic}
+                className={`p-2 border rounded-xl transition-all mr-2 ${!isMicMuted ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : 'bg-red-500/20 text-red-500 border-red-500/50 hover:bg-red-500/30'}`}
+                title={!isMicMuted ? "Mute Microphone" : "Unmute Microphone"}
+              >
+                {!isMicMuted ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+              </button>
+              
+              <button
+                onClick={() => switchDisplaySurface(displaySurface === 'monitor' ? 'window' : 'monitor')}
+                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white/80 mr-2"
+                title={`Switch to ${displaySurface === 'monitor' ? 'Window' : 'Entire Screen'}`}
+              >
+                {displaySurface === 'monitor' ? <LayoutTemplate className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+              </button>
+
+              <button
+                onClick={stopBroadcasting}
+                className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <MonitorX className="w-4 h-4" />
+                <span className="hidden sm:inline">Stop Share</span>
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShareMic(!shareMic)}
+                title={shareMic ? "Microphone sharing enabled" : "Microphone sharing disabled"}
+                className={`p-2 border rounded-xl transition-all ${shareMic ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10'}`}
+              >
+                {shareMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+              </button>
               <button
                 onClick={() => setShareAudio(!shareAudio)}
                 title={shareAudio ? "System audio sharing enabled" : "System audio sharing disabled"}
@@ -88,7 +118,7 @@ export function Room() {
                 {shareAudio ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
               </button>
               <button
-                onClick={() => startBroadcasting(shareAudio)}
+                onClick={() => startBroadcasting(shareAudio, shareMic)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] rounded-xl text-sm font-semibold uppercase tracking-widest transition-all flex items-center gap-2"
               >
                 <MonitorUp className="w-4 h-4" />

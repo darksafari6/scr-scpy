@@ -13,10 +13,13 @@ export function useWebRTC(roomId: string) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [activePeers, setActivePeers] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [displaySurface, setDisplaySurface] = useState<'monitor' | 'window'>('monitor');
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const roleRef = useRef<'viewer' | 'broadcaster'>('viewer');
 
@@ -159,25 +162,42 @@ export function useWebRTC(roomId: string) {
     };
   }, [roomId]); // Emulate empty dependency by only depending on roomId
 
-  const startBroadcasting = async (withAudio: boolean = false) => {
+  const startBroadcasting = async (withSystemAudio: boolean = false, withMic: boolean = false) => {
     try {
       setError(null);
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           cursor: 'always',
-          displaySurface: 'monitor',
+          displaySurface: displaySurface,
         } as MediaTrackConstraints,
-        audio: withAudio,
+        audio: withSystemAudio, // system audio
       });
 
-      localStreamRef.current = stream;
+      // Create an empty composite stream
+      const compositeStream = new MediaStream();
+      displayStream.getTracks().forEach(track => compositeStream.addTrack(track));
+
+      if (withMic) {
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micStreamRef.current = micStream;
+          micStream.getAudioTracks().forEach(track => {
+            compositeStream.addTrack(track);
+          });
+          setIsMicMuted(false);
+        } catch (micErr) {
+          console.error('Could not get mic', micErr);
+        }
+      }
+
+      localStreamRef.current = compositeStream;
       
       // Update role
       updateRole('broadcaster');
 
       // Update video element locally
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        videoRef.current.srcObject = compositeStream;
       }
       setIsStreaming(true);
 
@@ -191,7 +211,7 @@ export function useWebRTC(roomId: string) {
       }
 
       // Handle stream end (user clicks "Stop sharing" on the browser native popup)
-      stream.getVideoTracks()[0].onended = () => {
+      displayStream.getVideoTracks()[0].onended = () => {
         stopBroadcasting();
       };
 
@@ -205,6 +225,10 @@ export function useWebRTC(roomId: string) {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
     }
     setIsStreaming(false);
     updateRole('viewer');
@@ -223,6 +247,54 @@ export function useWebRTC(roomId: string) {
     }
   };
 
+  const toggleMic = () => {
+    if (micStreamRef.current) {
+      const audioTracks = micStreamRef.current.getAudioTracks();
+      if (audioTracks.length > 0) {
+        const newState = !audioTracks[0].enabled;
+        audioTracks.forEach(t => t.enabled = newState);
+        setIsMicMuted(!newState);
+      }
+    }
+  };
+
+  const switchDisplaySurface = async (surface: 'monitor' | 'window') => {
+    if (!localStreamRef.current) return;
+    try {
+      const newStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always', displaySurface: surface }
+      });
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      
+      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (oldVideoTrack) {
+        oldVideoTrack.stop();
+        localStreamRef.current.removeTrack(oldVideoTrack);
+      }
+      
+      localStreamRef.current.addTrack(newVideoTrack);
+
+      peerConnectionsRef.current.forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(newVideoTrack);
+        }
+      });
+
+      newVideoTrack.onended = () => {
+        stopBroadcasting();
+      };
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = localStreamRef.current;
+      }
+
+      setDisplaySurface(surface);
+    } catch (err) {
+      console.error('Display surface switch failed', err);
+    }
+  };
+
   return {
     videoRef,
     role,
@@ -230,6 +302,10 @@ export function useWebRTC(roomId: string) {
     activePeers,
     error,
     startBroadcasting,
-    stopBroadcasting
+    stopBroadcasting,
+    isMicMuted,
+    toggleMic,
+    displaySurface,
+    switchDisplaySurface
   };
 }
