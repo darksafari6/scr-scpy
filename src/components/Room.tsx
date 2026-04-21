@@ -1,17 +1,44 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video } from 'lucide-react';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video, AlertCircle } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export function Room() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [shareAudio, setShareAudio] = useState(false);
   const [shareMic, setShareMic] = useState(false);
+  const [isTrueHost, setIsTrueHost] = useState<boolean | null>(null);
+  const [showHostPrompt, setShowHostPrompt] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   
   if (!roomId) return null;
+
+  useEffect(() => {
+    async function checkHost() {
+      if (!user) {
+        setIsTrueHost(false);
+        return;
+      }
+      try {
+        const roomDoc = await getDoc(doc(db, 'rooms', roomId!));
+        if (roomDoc.exists() && roomDoc.data().hostId === user.uid) {
+          setIsTrueHost(true);
+        } else {
+          setIsTrueHost(false);
+        }
+      } catch (e) {
+        console.error("Could not verify host status", e);
+        setIsTrueHost(false);
+      }
+    }
+    checkHost();
+  }, [roomId, user]);
 
   const {
     videoRef,
@@ -32,6 +59,14 @@ export function Room() {
   } = useWebRTC(roomId);
 
   const isBroadcaster = role === 'broadcaster';
+
+  const handleShareClick = () => {
+    if (isTrueHost) {
+      startBroadcasting(shareAudio, shareMic);
+    } else {
+      setShowHostPrompt(true);
+    }
+  };
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -148,7 +183,7 @@ export function Room() {
                 {shareAudio ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
               </button>
               <button
-                onClick={() => startBroadcasting(shareAudio, shareMic)}
+                onClick={handleShareClick}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] rounded-xl text-sm font-semibold uppercase tracking-widest transition-all flex items-center gap-2"
               >
                 <MonitorUp className="w-4 h-4" />
@@ -211,10 +246,24 @@ export function Room() {
                     <MonitorUp className="w-12 h-12 text-white/30" strokeWidth={1} />
                   </div>
                   <div className="space-y-2">
-                    <h2 className="text-xl md:text-2xl font-medium tracking-wide">Ready to connect</h2>
+                    <h2 className="text-xl md:text-2xl font-medium tracking-wide">
+                      {showHostPrompt ? "Only the host can present" : "Ready to connect"}
+                    </h2>
                     <p className="text-white/40 text-sm max-w-sm mx-auto">
-                      Wait for the host to start screen sharing, or click "Share Screen" if you are the presenter.
+                      {showHostPrompt 
+                        ? "You are currently joined as a Viewer. If you want to share a screen, please return to your Dashboard to create a new session." 
+                        : "Wait for the host to start screen sharing, or click \"Share Screen\" if you are the host."}
                     </p>
+                    {showHostPrompt && !user && (
+                      <button onClick={() => navigate('/')} className="mt-4 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/50 rounded-xl text-xs uppercase font-bold tracking-widest transition-all">
+                        Log In To Host
+                      </button>
+                    )}
+                    {showHostPrompt && user && (
+                      <button onClick={() => navigate('/dashboard')} className="mt-4 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/50 rounded-xl text-xs uppercase font-bold tracking-widest transition-all">
+                        Go To Dashboard
+                      </button>
+                    )}
                   </div>
                 </>
               )}
