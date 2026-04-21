@@ -1,0 +1,10 @@
+{
+  "name": "SafariCast",
+  "description": "A lightweight, modern web-based screen sharing platform using WebRTC.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "display-capture"
+  ],
+  "majorCapabilities": []
+}
