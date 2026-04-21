@@ -1,6 +1,6 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X } from 'lucide-react';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 export function Room() {
@@ -9,6 +9,7 @@ export function Room() {
   const [copied, setCopied] = useState(false);
   const [shareAudio, setShareAudio] = useState(false);
   const [shareMic, setShareMic] = useState(false);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   
   if (!roomId) return null;
 
@@ -24,7 +25,10 @@ export function Room() {
     isMicMuted,
     toggleMic,
     displaySurface,
-    switchDisplaySurface
+    switchDisplaySurface,
+    isRecording,
+    startRecording,
+    stopRecording
   } = useWebRTC(roomId);
 
   const isBroadcaster = role === 'broadcaster';
@@ -38,6 +42,22 @@ export function Room() {
   const handleLeave = () => {
     stopBroadcasting();
     navigate('/');
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      videoContainerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const togglePiP = () => {
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture();
+    } else if (videoRef.current) {
+      videoRef.current.requestPictureInPicture();
+    }
   };
 
   return (
@@ -95,6 +115,15 @@ export function Room() {
               </button>
 
               <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-sm font-semibold uppercase tracking-widest transition-all mr-4 shadow-lg ${isRecording ? 'bg-red-500/20 text-red-500 border-red-500/50 animate-pulse' : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'}`}
+                title={isRecording ? 'Stop Recording locally' : 'Start Recording locally'}
+              >
+                {isRecording ? <StopCircle className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                <span className="hidden xl:inline">{isRecording ? 'REC' : 'Record'}</span>
+              </button>
+
+              <button
                 onClick={stopBroadcasting}
                 className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 rounded-xl text-sm font-semibold uppercase tracking-widest transition-all flex items-center gap-2"
               >
@@ -145,7 +174,7 @@ export function Room() {
           </div>
         )}
 
-        <div className="w-full max-w-6xl aspect-video relative rounded-2xl md:rounded-3xl overflow-hidden bg-[#111] border border-white/5 shadow-2xl flex items-center justify-center">
+        <div ref={videoContainerRef} className="w-full max-w-6xl aspect-video relative rounded-2xl md:rounded-3xl overflow-hidden bg-[#111] border border-white/5 shadow-2xl flex items-center justify-center group">
           
           <video
             ref={videoRef}
@@ -155,6 +184,17 @@ export function Room() {
             muted={isBroadcaster} // Mute our own stream to avoid feedback locally
             className={`w-full h-full object-contain ${!isStreaming ? 'hidden' : ''}`}
           />
+
+          {!isBroadcaster && isStreaming && (
+            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={togglePiP} className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur text-white rounded-lg transition-colors border border-white/10" title="Picture in Picture">
+                <PictureInPicture className="w-5 h-5" />
+              </button>
+              <button onClick={toggleFullscreen} className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur text-white rounded-lg transition-colors border border-white/10" title="Fullscreen">
+                <Focus className="w-5 h-5" />
+              </button>
+            </div>
+          )}
 
           {!isStreaming && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-6 bg-black/40 backdrop-blur-sm">

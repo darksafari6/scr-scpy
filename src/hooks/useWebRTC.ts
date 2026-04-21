@@ -8,6 +8,13 @@ const ICE_SERVERS = {
   ],
 };
 
+export interface ChatMessage {
+  id: string;
+  sender: string;
+  text: string;
+  timestamp: number;
+}
+
 export function useWebRTC(roomId: string) {
   const [role, setRole] = useState<'viewer' | 'broadcaster'>('viewer');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -15,6 +22,8 @@ export function useWebRTC(roomId: string) {
   const [error, setError] = useState<string | null>(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [displaySurface, setDisplaySurface] = useState<'monitor' | 'window'>('monitor');
+  const [isRecording, setIsRecording] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -22,6 +31,8 @@ export function useWebRTC(roomId: string) {
   const micStreamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const roleRef = useRef<'viewer' | 'broadcaster'>('viewer');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   const updateRole = useCallback((newRole: 'viewer' | 'broadcaster') => {
     roleRef.current = newRole;
@@ -170,6 +181,10 @@ export function useWebRTC(roomId: string) {
       }
     });
 
+    socket.on('chat-message', (message: ChatMessage) => {
+      setMessages((prev) => [...prev, message]);
+    });
+
     return () => {
       socket.disconnect();
       peerConnectionsRef.current.forEach((pc) => pc.close());
@@ -187,9 +202,18 @@ export function useWebRTC(roomId: string) {
         video: {
           cursor: 'always',
           displaySurface: displaySurface,
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
+          frameRate: { ideal: 30, max: 60 }
         } as MediaTrackConstraints,
         audio: withSystemAudio, // system audio
       });
+
+      const videoTrack = displayStream.getVideoTracks()[0];
+      if ('contentHint' in videoTrack) {
+        // Optimizes WebRTC encoding for detailed screen content (text)
+        videoTrack.contentHint = 'detail';
+      }
 
       // Create an empty composite stream
       const compositeStream = new MediaStream();
@@ -247,7 +271,15 @@ export function useWebRTC(roomId: string) {
     }
   };
 
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
   const stopBroadcasting = () => {
+    stopRecording();
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
@@ -321,6 +353,57 @@ export function useWebRTC(roomId: string) {
     }
   };
 
+  const startRecording = () => {
+    if (!localStreamRef.current) return;
+    recordedChunksRef.current = [];
+    try {
+      // Use webm, fallback to whatever browser supports if needed
+      const options = { mimeType: 'video/webm; codecs=vp9' };
+      const recorder = new MediaRecorder(localStreamRef.current, MediaRecorder.isTypeSupported(options.mimeType) ? options : undefined);
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          recordedChunksRef.current.push(e.data);
+        }
+      };
+      
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `SafariCast-Session-${new Date().getTime()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+      };
+      
+      recorder.start();
+      setIsRecording(true);
+      mediaRecorderRef.current = recorder;
+    } catch (e) {
+      console.error('Failed to start recording', e);
+      setError('Screen recording is not supported on this browser context.');
+    }
+  };
+
+  const sendMessage = (text: string, senderName: string) => {
+    const msg: ChatMessage = {
+      id: Math.random().toString(36).substring(2, 9),
+      sender: senderName,
+      text,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, msg]);
+    if (socketRef.current) {
+      socketRef.current.emit('send-message', roomId, msg);
+    }
+  };
+
   return {
     videoRef,
     role,
@@ -333,6 +416,11 @@ export function useWebRTC(roomId: string) {
     isMicMuted,
     toggleMic,
     displaySurface,
-    switchDisplaySurface
+    switchDisplaySurface,
+    isRecording,
+    startRecording,
+    stopRecording,
+    messages,
+    sendMessage
   };
 }

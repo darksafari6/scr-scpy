@@ -40,6 +40,10 @@ async function startServer() {
       socket.to(roomId).emit('stream-stopped');
     });
 
+    socket.on('send-message', (roomId: string, message: any) => {
+      socket.to(roomId).emit('chat-message', message);
+    });
+
     socket.on('disconnecting', () => {
       socket.rooms.forEach(room => {
         if (room !== socket.id) {
