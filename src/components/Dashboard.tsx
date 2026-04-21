@@ -1,16 +1,25 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
-import { collection, query, getDocs, setDoc, doc, serverTimestamp, deleteDoc, where } from 'firebase/firestore';
+import { collection, query, getDocs, setDoc, doc, serverTimestamp, deleteDoc, where, Timestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Plus, Share, History, Video, ArrowRight, LayoutDashboard, Settings, Activity, Trash2, PanelLeftClose, PanelLeft, Monitor, Key } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { QualityPreset } from '../hooks/useWebRTC';
 
+interface Room {
+  id: string;
+  hostId: string;
+  name: string;
+  status: string;
+  createdAt: Timestamp;
+  endedAt: Timestamp | null;
+}
+
 export function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [activeTab, setActiveTab] = useState<'sessions' | 'settings'>('sessions');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -30,9 +39,9 @@ export function Dashboard() {
         const fetchedRooms = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as Room[];
         
-        fetchedRooms.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
+        fetchedRooms.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
         setRooms(fetchedRooms);
       } catch (error) {
         console.error("Error fetching rooms", error);
@@ -138,12 +147,12 @@ export function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative z-10 scroll-smooth">
+      <main className="flex-1 overflow-y-auto relative z-10 scroll-smooth font-sans">
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <Share className="w-5 h-5 text-purple-400" />
-            <h1 className="font-bold uppercase tracking-widest text-sm">SafariCast</h1>
+            <h1 className="font-bold uppercase tracking-widest text-sm font-display">SafariCast</h1>
           </div>
           <button onClick={() => { logout(); navigate('/'); }} className="text-white/40">
             <LogOut className="w-5 h-5" />
@@ -163,7 +172,7 @@ export function Dashboard() {
                 {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
               </button>
               <div>
-                <h2 className="text-4xl font-bold tracking-tight mb-2 flex items-center gap-3">
+                <h2 className="text-4xl font-bold tracking-tight mb-2 flex items-center gap-3 font-display">
                   Host Dashboard
                 </h2>
                 <p className="text-white/40 uppercase tracking-widest text-xs font-mono">Manage your secure streaming infrastructure</p>
@@ -207,7 +216,7 @@ export function Dashboard() {
               {/* Sessions List */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                  <h3 className="uppercase tracking-widest text-sm font-bold">Session History</h3>
+                  <h3 className="uppercase tracking-widest text-sm font-bold font-display text-white/80">Session History</h3>
                 </div>
 
                 {loadingRooms ? (
@@ -270,7 +279,7 @@ export function Dashboard() {
           {activeTab === 'settings' && (
             <div className="p-8 bg-[#0a0a0a] rounded-3xl border border-white/5 space-y-8">
               <div>
-                <h3 className="text-xl font-bold mb-2">Host Preferences</h3>
+                <h3 className="text-xl font-bold mb-2 font-display">Host Preferences</h3>
                 <p className="text-white/40 text-sm">Manage defaults used when initiating new broadcast sessions.</p>
               </div>
 

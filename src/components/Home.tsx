@@ -144,7 +144,7 @@ export function Home() {
         </div>
       </nav>
 
-      <main className="flex-1 flex flex-col items-center pt-24 md:pt-32 px-4 relative z-10 w-full max-w-7xl mx-auto">
+      <main className="flex-1 flex flex-col items-center pt-24 md:pt-32 px-4 relative z-10 w-full max-w-7xl mx-auto font-sans">
         {/* Hero Section */}
         <motion.div 
           initial={{ opacity: 0, y: 40 }}
@@ -164,7 +164,7 @@ export function Home() {
             </span>
             NETWORK PROTOCOL STABLE • v2.4.14
           </motion.div>
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.95]">
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.95] font-display">
             The New Standard in <br className="hidden lg:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/90 to-white/20">
               Visual Logic.
@@ -200,7 +200,7 @@ export function Home() {
                   <span className="text-[10px] font-mono text-white/20 tracking-widest uppercase">BRIDGE INGRESS</span>
                 </div>
                 <div>
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">Active Node Join</h2>
+                  <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight font-display">Active Node Join</h2>
                   <p className="text-white/30 text-base leading-relaxed font-light">Input the session synchronization key to initialize the peer handshake and establish a direct secure vision tunnel.</p>
                 </div>
                 <form onSubmit={joinRoom} className="space-y-6 pt-6 mt-auto">
@@ -244,7 +244,7 @@ export function Home() {
                   <span className="text-[10px] font-mono text-purple-400/30 tracking-widest uppercase">BROADCAST EGRESS</span>
                 </div>
                 <div>
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">System Deployment</h2>
+                  <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight font-display">System Deployment</h2>
                   <p className="text-purple-100/30 text-base leading-relaxed font-light">Provision an encrypted signaling room. Host multiple viewing nodes with hardware-accelerated 4K encoding and zero bitrate caps.</p>
                 </div>
                 
@@ -291,7 +291,7 @@ export function Home() {
               className="text-center md:text-left"
             >
               <div className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] mb-2">{stat.label}</div>
-              <div className={`text-2xl md:text-3xl font-black tracking-tight ${stat.color}`}>{stat.value}</div>
+              <div className={`text-2xl md:text-3xl font-black tracking-tight ${stat.color} font-display`}>{stat.value}</div>
             </motion.div>
           ))}
         </div>
@@ -306,7 +306,7 @@ export function Home() {
         >
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
             <div className="max-w-2xl space-y-6">
-              <h2 className="text-4xl md:text-6xl font-black tracking-tighter leading-none">Modern <br/>Infrastructure.</h2>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tighter leading-none font-display">Modern <br/>Infrastructure.</h2>
               <p className="text-white/40 text-lg md:text-xl font-light leading-relaxed">We stripped away the heavy layers of centralized streaming to build on core WebRTC primitives for a hyper-resilient network.</p>
             </div>
             <div className="flex items-center gap-4 text-purple-400 text-xs font-mono uppercase tracking-[0.3em]">
@@ -326,7 +326,7 @@ export function Home() {
               <div key={i} className={`group bg-white/[0.01] border border-white/5 p-10 rounded-[2.5rem] transition-all duration-500 ${feature.bg} relative overflow-hidden`}>
                 <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/5 rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
                 <feature.icon className={`w-10 h-10 ${feature.color} mb-8 transition-transform group-hover:scale-110`} />
-                <h3 className="text-xl font-bold mb-4 tracking-tight">{feature.title}</h3>
+                <h3 className="text-xl font-bold mb-4 tracking-tight font-display">{feature.title}</h3>
                 <p className="text-white/30 text-sm leading-relaxed font-light">{feature.desc}</p>
               </div>
             ))}
@@ -342,7 +342,7 @@ export function Home() {
         >
           <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:40px_40px]" />
           <div className="relative z-10 space-y-8">
-            <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter">Ready for the Future?</h2>
+            <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter font-display">Ready for the Future?</h2>
             <p className="text-white/50 text-base md:text-xl max-w-2xl mx-auto font-light">Join the thousands of developers and tech-leads who rely on our secure tunneling engine for critical presentations.</p>
             <div className="flex justify-center gap-4">
               <button onClick={handleLogin} className="px-10 py-5 bg-white text-black font-bold rounded-2xl text-xs uppercase tracking-widest shadow-2xl">Start Free Deployment</button>
@@ -364,7 +364,7 @@ export function Home() {
               <AlertTriangle className="w-10 h-10 text-red-500" />
             </div>
             <div className="space-y-6">
-              <h3 className="text-2xl font-black text-red-100 tracking-tight flex items-center gap-3">
+              <h3 className="text-2xl font-black text-red-100 tracking-tight flex items-center gap-3 font-display">
                 <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
                 RESTRICTED PROTOCOL NOTICE
               </h3>
