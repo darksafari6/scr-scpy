@@ -1,4 +1,4 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor } from 'lucide-react';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -18,6 +18,7 @@ export function Room() {
     isStreaming,
     activePeers,
     error,
+    clearError,
     startBroadcasting,
     stopBroadcasting,
     isMicMuted,
@@ -132,9 +133,15 @@ export function Room() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 z-10 relative">
         {error && (
-          <div className="absolute top-8 p-4 bg-red-950/50 border border-red-500/50 rounded-xl text-red-200 flex items-center gap-3 max-w-lg w-full backdrop-blur-sm z-50">
-            <Info className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm">{error}</p>
+          <div className="absolute top-8 p-4 bg-red-950/80 border border-red-500/50 rounded-xl text-red-200 flex items-start gap-3 max-w-xl w-full backdrop-blur-md shadow-[0_0_30px_rgba(239,68,68,0.2)] z-50">
+            <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-400" />
+            <p className="text-sm font-medium leading-relaxed flex-1">{error}</p>
+            <button 
+              onClick={clearError}
+              className="p-1 hover:bg-white/10 rounded-md transition-colors flex-shrink-0 text-white/50 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 

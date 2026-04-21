@@ -49,12 +49,30 @@ export function useWebRTC(roomId: string) {
 
     pc.onconnectionstatechange = () => {
       console.log(`Connection state with ${targetId}:`, pc.connectionState);
+      if (pc.connectionState === 'failed') {
+        if (roleRef.current === 'viewer') {
+          setError('Connection to host failed. Your firewall, corporate network, or VPN might be blocking WebRTC traffic.');
+        }
+      } else if (pc.connectionState === 'connected') {
+        if (roleRef.current === 'viewer') {
+          setError(null);
+        }
+      }
+
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         peerConnectionsRef.current.delete(targetId);
         setActivePeers(peerConnectionsRef.current.size);
         if (roleRef.current === 'viewer') {
           setIsStreaming(false);
           if (videoRef.current) videoRef.current.srcObject = null;
+        }
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'failed') {
+        if (roleRef.current === 'viewer') {
+          setError('Network routing failed (ICE error). Try disabling any active VPNs, Proxies, or strict Ad-blockers.');
         }
       }
     };
@@ -217,7 +235,15 @@ export function useWebRTC(roomId: string) {
 
     } catch (err: any) {
       console.error('Failed to get display media', err);
-      setError('Could not access screen. Ensure you have granted permissions.');
+      if (err.name === 'NotAllowedError') {
+        setError('Screen sharing or microphone permission was denied by the system or browser.');
+      } else if (err.name === 'NotFoundError') {
+        setError('No eligible screen or window was found to share, or no microphone detected.');
+      } else if (err.name === 'NotReadableError') {
+        setError('Hardware error. Another application might be locking your mic or screen capture.');
+      } else {
+        setError('Could not access screen or microphone. Ensure you have granted necessary OS permissions.');
+      }
     }
   };
 
@@ -301,6 +327,7 @@ export function useWebRTC(roomId: string) {
     isStreaming,
     activePeers,
     error,
+    clearError: () => setError(null),
     startBroadcasting,
     stopBroadcasting,
     isMicMuted,
