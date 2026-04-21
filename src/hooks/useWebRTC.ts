@@ -15,6 +15,22 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export type QualityPreset = 'low' | 'medium' | 'high' | 'source';
+
+export const QUALITY_CONSTRAINTS: Record<QualityPreset, MediaTrackConstraints> = {
+  low: { width: { max: 1280 }, height: { max: 720 }, frameRate: { max: 15 } },
+  medium: { width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 }, frameRate: { ideal: 30, max: 30 } },
+  high: { width: { ideal: 2560, max: 3840 }, height: { ideal: 1440, max: 2160 }, frameRate: { ideal: 60, max: 60 } },
+  source: { width: { ideal: 1920, max: 3840 }, height: { ideal: 1080, max: 2160 }, frameRate: { ideal: 30, max: 60 } }
+};
+
+export const QUALITY_BITRATES: Record<QualityPreset, number> = {
+  low: 500_000,       // 500 kbps
+  medium: 2_500_000,  // 2.5 Mbps
+  high: 8_000_000,    // 8 Mbps
+  source: 15_000_000, // 15 Mbps
+};
+
 export function useWebRTC(roomId: string) {
   const [role, setRole] = useState<'viewer' | 'broadcaster'>('viewer');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -24,6 +40,7 @@ export function useWebRTC(roomId: string) {
   const [displaySurface, setDisplaySurface] = useState<'monitor' | 'window'>('monitor');
   const [isRecording, setIsRecording] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [quality, setQuality] = useState<QualityPreset>('source');
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -91,7 +108,17 @@ export function useWebRTC(roomId: string) {
     // If we are the broadcaster, add local stream to the connection
     if (isInitiator && localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
+        const sender = pc.addTrack(track, localStreamRef.current!);
+        if (track.kind === 'video') {
+           const params = sender.getParameters();
+           if (!params.encodings) {
+             params.encodings = [{}];
+           }
+           if (params.encodings.length > 0) {
+             params.encodings[0].maxBitrate = QUALITY_BITRATES[quality];
+             sender.setParameters(params).catch(e => console.error("Failed to set initial bitrate", e));
+           }
+        }
       });
     }
 
@@ -202,9 +229,7 @@ export function useWebRTC(roomId: string) {
         video: {
           cursor: 'always',
           displaySurface: displaySurface,
-          width: { ideal: 1920, max: 3840 },
-          height: { ideal: 1080, max: 2160 },
-          frameRate: { ideal: 30, max: 60 }
+          ...QUALITY_CONSTRAINTS[quality]
         } as MediaTrackConstraints,
         audio: withSystemAudio, // system audio
       });
@@ -320,7 +345,11 @@ export function useWebRTC(roomId: string) {
     if (!localStreamRef.current) return;
     try {
       const newStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always', displaySurface: surface }
+        video: { 
+          cursor: 'always', 
+          displaySurface: surface,
+          ...QUALITY_CONSTRAINTS[quality]
+        }
       });
       const newVideoTrack = newStream.getVideoTracks()[0];
       
@@ -404,6 +433,36 @@ export function useWebRTC(roomId: string) {
     }
   };
 
+  const changeQuality = async (preset: QualityPreset) => {
+    setQuality(preset);
+    if (localStreamRef.current && isStreaming && roleRef.current === 'broadcaster') {
+      const videoTrack = localStreamRef.current.getVideoTracks().find(t => t.kind === 'video');
+      if (videoTrack) {
+        try {
+          await videoTrack.applyConstraints({
+            ...QUALITY_CONSTRAINTS[preset],
+            cursor: 'always',
+            displaySurface: displaySurface
+          });
+        } catch (e) {
+          console.error("Failed to apply video constraints live", e);
+        }
+      }
+
+      // Update bitrates live
+      peerConnectionsRef.current.forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          const params = sender.getParameters();
+          if (params.encodings && params.encodings.length > 0) {
+             params.encodings[0].maxBitrate = QUALITY_BITRATES[preset];
+             sender.setParameters(params).catch(e => console.error("Failed to update bitrate", e));
+          }
+        }
+      });
+    }
+  };
+
   return {
     videoRef,
     role,
@@ -421,6 +480,8 @@ export function useWebRTC(roomId: string) {
     startRecording,
     stopRecording,
     messages,
-    sendMessage
+    sendMessage,
+    quality,
+    changeQuality
   };
 }

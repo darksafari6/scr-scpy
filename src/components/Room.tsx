@@ -1,5 +1,5 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video, AlertCircle } from 'lucide-react';
-import { useWebRTC } from '../hooks/useWebRTC';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video, AlertCircle, Settings2 } from 'lucide-react';
+import { useWebRTC, QualityPreset } from '../hooks/useWebRTC';
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -55,7 +55,9 @@ export function Room() {
     switchDisplaySurface,
     isRecording,
     startRecording,
-    stopRecording
+    stopRecording,
+    quality,
+    changeQuality
   } = useWebRTC(roomId);
 
   const isBroadcaster = role === 'broadcaster';
@@ -133,6 +135,26 @@ export function Room() {
 
           {isBroadcaster ? (
             <div className="flex items-center gap-2">
+              <div className="relative group mr-2">
+                <button className="p-2 border rounded-xl transition-all bg-white/5 text-white/80 border-white/10 hover:bg-white/10 flex items-center gap-1" title="Quality Settings">
+                  <Settings2 className="w-4 h-4" />
+                </button>
+                <div className="absolute right-0 top-full mt-2 w-36 bg-black/90 backdrop-blur border border-white/10 rounded-xl shadow-2xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                  <div className="p-2 flex flex-col gap-1">
+                    <div className="text-[10px] text-white/40 uppercase tracking-widest px-2 py-1 font-mono">Stream Quality</div>
+                    {(['low', 'medium', 'high', 'source'] as QualityPreset[]).map(q => (
+                      <button
+                        key={q}
+                        onClick={() => changeQuality(q)}
+                        className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${quality === q ? 'bg-purple-500/20 text-purple-400' : 'hover:bg-white/10 text-white/70'}`}
+                      >
+                        {q.charAt(0).toUpperCase() + q.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <button
                 onClick={toggleMic}
                 className={`p-2 border rounded-xl transition-all mr-2 ${!isMicMuted ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : 'bg-red-500/20 text-red-500 border-red-500/50 hover:bg-red-500/30'}`}
