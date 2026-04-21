@@ -319,7 +319,6 @@ export function useWebRTC(roomId: string) {
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           cursor: 'always',
-          displaySurface: displaySurface,
           ...QUALITY_CONSTRAINTS[quality]
         } as MediaTrackConstraints,
         audio: withSystemAudio, // system audio
@@ -434,21 +433,22 @@ export function useWebRTC(roomId: string) {
 
   const switchDisplaySurface = async (surface: 'monitor' | 'window') => {
     if (!localStreamRef.current) return;
+    
+    const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+    // Stop the track FIRST to avoid browser blocking multiple concurrent getDisplayMedia sessions
+    if (oldVideoTrack) {
+      oldVideoTrack.stop();
+      localStreamRef.current.removeTrack(oldVideoTrack);
+    }
+
     try {
       const newStream = await navigator.mediaDevices.getDisplayMedia({
         video: { 
           cursor: 'always', 
-          displaySurface: surface,
           ...QUALITY_CONSTRAINTS[quality]
         }
       });
       const newVideoTrack = newStream.getVideoTracks()[0];
-      
-      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
-      if (oldVideoTrack) {
-        oldVideoTrack.stop();
-        localStreamRef.current.removeTrack(oldVideoTrack);
-      }
       
       localStreamRef.current.addTrack(newVideoTrack);
 
@@ -468,8 +468,16 @@ export function useWebRTC(roomId: string) {
       }
 
       setDisplaySurface(surface);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Display surface switch failed', err);
+      // If user cancels the prompt or it fails, we already stopped the old track, so we must tear down the broadcast
+      stopBroadcasting();
+      
+      if (err.name === 'NotAllowedError') {
+        setError('Screen sharing was cancelled or permission denied.');
+      } else {
+        setError(err.message || 'Display surface switch failed.');
+      }
     }
   };
 
@@ -526,15 +534,16 @@ export function useWebRTC(roomId: string) {
 
   const changeQuality = async (preset: QualityPreset) => {
     setQuality(preset);
+    localStorage.setItem('safaricast_quality', preset);
+
     if (localStreamRef.current && isStreaming && roleRef.current === 'broadcaster') {
       const videoTrack = localStreamRef.current.getVideoTracks().find(t => t.kind === 'video');
       if (videoTrack) {
         try {
           await videoTrack.applyConstraints({
             ...QUALITY_CONSTRAINTS[preset],
-            cursor: 'always',
-            displaySurface: displaySurface
-          });
+            cursor: 'always'
+          } as MediaTrackConstraints);
         } catch (e) {
           console.error("Failed to apply video constraints live", e);
         }

@@ -1,6 +1,6 @@
 {
   "name": "SafariCast",
-  "description": "A lightweight, modern web-based screen sharing platform using WebRTC.",
+  "description": "High-performance, decentralized P2P screen broadcasting infrastructure built on modern WebRTC protocols for low-latency synchronization.",
   "requestFramePermissions": [
     "camera",
     "microphone",
