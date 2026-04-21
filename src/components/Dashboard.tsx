@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
-import { collection, query, getDocs, setDoc, doc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, getDocs, setDoc, doc, serverTimestamp, deleteDoc, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Plus, Share, History, Video, ArrowRight, LayoutDashboard, Settings, Activity } from 'lucide-react';
+import { LogOut, Plus, Share, History, Video, ArrowRight, LayoutDashboard, Settings, Activity, Trash2, PanelLeftClose, PanelLeft, Monitor, Key } from 'lucide-react';
 import { logout } from '../lib/auth';
+import { QualityPreset } from '../hooks/useWebRTC';
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -12,6 +13,9 @@ export function Dashboard() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [activeTab, setActiveTab] = useState<'sessions' | 'settings'>('sessions');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [defaultQuality, setDefaultQuality] = useState<QualityPreset>((localStorage.getItem('safaricast_quality') as QualityPreset) || 'source');
+  const [autoMuteMic, setAutoMuteMic] = useState<boolean>(localStorage.getItem('safaricast_mic') === 'true');
 
   useEffect(() => {
     if (!user) return;
@@ -57,50 +61,78 @@ export function Dashboard() {
     navigate(`/room/${newRoomId}`);
   };
 
+  const handleDeleteRoom = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const confirmed = window.confirm("Are you sure you want to end and delete this streaming session forever?");
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'rooms', id));
+      setRooms(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      console.error("Failed to delete room:", err);
+    }
+  };
+
+  const handleQualityChange = (q: QualityPreset) => {
+    setDefaultQuality(q);
+    localStorage.setItem('safaricast_quality', q);
+  };
+
+  const toggleAutoMute = () => {
+    const newVal = !autoMuteMic;
+    setAutoMuteMic(newVal);
+    localStorage.setItem('safaricast_mic', newVal.toString());
+  };
+
   return (
     <div className="flex h-screen bg-[#050505] text-white font-sans overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-0 left-64 w-1/2 h-1/2 bg-blue-900/10 rounded-full blur-[150px] pointer-events-none -z-10" />
 
       {/* Sidebar */}
-      <aside className="w-64 bg-[#0a0a0a] border-r border-white/5 hidden md:flex flex-col justify-between relative z-20">
+      <aside className={`bg-[#0a0a0a] border-r border-white/5 hidden md:flex flex-col justify-between relative z-20 transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
         <div className="p-6 space-y-8">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="p-2 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+            <div className="p-2 bg-purple-500/10 border border-purple-500/20 rounded-xl shrink-0">
               <Share className="w-5 h-5 text-purple-400" />
             </div>
-            <h1 className="font-bold uppercase tracking-widest text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">SafariCast</h1>
+            {isSidebarOpen && <h1 className="font-bold uppercase tracking-widest text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60 whitespace-nowrap">SafariCast</h1>}
           </div>
 
           <nav className="space-y-2">
             <button 
               onClick={() => setActiveTab('sessions')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold uppercase tracking-widest transition-colors ${activeTab === 'sessions' ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/5 hover:text-white/80'}`}
+              className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-4' : 'justify-center px-0'} py-3 rounded-xl text-sm font-semibold uppercase tracking-widest transition-colors ${activeTab === 'sessions' ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/5 hover:text-white/80'}`}
+              title="Sessions"
             >
-              <LayoutDashboard className="w-4 h-4" /> Sessions
+              <LayoutDashboard className="w-4 h-4 shrink-0" /> {isSidebarOpen && <span>Sessions</span>}
             </button>
             <button 
               onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold uppercase tracking-widest transition-colors ${activeTab === 'settings' ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/5 hover:text-white/80'}`}
+              className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-4' : 'justify-center px-0'} py-3 rounded-xl text-sm font-semibold uppercase tracking-widest transition-colors ${activeTab === 'settings' ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/5 hover:text-white/80'}`}
+              title="Preferences"
             >
-              <Settings className="w-4 h-4" /> Preferences
+              <Settings className="w-4 h-4 shrink-0" /> {isSidebarOpen && <span>Preferences</span>}
             </button>
           </nav>
         </div>
 
         <div className="p-6 border-t border-white/5">
-          <div className="flex items-center gap-3 mb-6">
-            <img src={user?.photoURL || ''} alt="Profile" className="w-10 h-10 rounded-full border border-white/10" />
-            <div className="overflow-hidden relative flex-1">
-              <p className="text-sm font-bold truncate">{user?.displayName || 'Host'}</p>
-              <p className="text-[10px] text-white/40 uppercase tracking-widest truncate">{user?.email}</p>
-            </div>
+          <div className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'justify-center'} mb-6`}>
+            <img src={user?.photoURL || ''} alt="Profile" className="w-10 h-10 rounded-full border border-white/10 shrink-0" title={user?.displayName || 'Host'} />
+            {isSidebarOpen && (
+              <div className="overflow-hidden relative flex-1">
+                <p className="text-sm font-bold truncate">{user?.displayName || 'Host'}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest truncate">{user?.email}</p>
+              </div>
+            )}
           </div>
           <button 
             onClick={() => { logout(); navigate('/'); }}
-            className="w-full flex justify-center items-center gap-2 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-xs sm:text-xs uppercase tracking-widest font-bold transition-all"
+            className={`w-full flex justify-center items-center gap-2 ${isSidebarOpen ? 'px-4' : 'px-0'} py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-xs uppercase tracking-widest font-bold transition-all`}
+            title="Sign Out"
           >
-            <LogOut className="w-4 h-4" /> Sign Out
+            <LogOut className="w-4 h-4 shrink-0" /> {isSidebarOpen && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
@@ -122,9 +154,20 @@ export function Dashboard() {
           
           {/* Header & Stats */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div>
-              <h2 className="text-4xl font-bold tracking-tight mb-2">Host Dashboard</h2>
-              <p className="text-white/40 uppercase tracking-widest text-xs font-mono">Manage your secure streaming infrastructure</p>
+            <div className="flex items-start gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+                className="hidden md:flex p-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 rounded-xl transition-colors mt-2"
+                title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+              >
+                {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+              </button>
+              <div>
+                <h2 className="text-4xl font-bold tracking-tight mb-2 flex items-center gap-3">
+                  Host Dashboard
+                </h2>
+                <p className="text-white/40 uppercase tracking-widest text-xs font-mono">Manage your secure streaming infrastructure</p>
+              </div>
             </div>
             
             <button
@@ -200,13 +243,22 @@ export function Dashboard() {
                           </div>
                         </div>
                         
-                        <button 
-                          onClick={() => navigate(`/room/${room.id}`)}
-                          className="w-full sm:w-auto p-4 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-xl transition-all flex items-center justify-center gap-2"
-                        >
-                          <span className="uppercase text-xs tracking-widest font-bold">Rejoin Engine</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
+                        <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+                          <button 
+                            onClick={(e) => handleDeleteRoom(e, room.id)}
+                            className="p-4 bg-red-500/5 hover:bg-red-500/20 text-red-500/70 hover:text-red-400 border border-red-500/10 rounded-xl transition-all flex items-center justify-center"
+                            title="Delete Session"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => navigate(`/room/${room.id}`)}
+                            className="w-full sm:w-auto p-4 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-xl transition-all flex items-center justify-center gap-2"
+                          >
+                            <span className="uppercase text-xs tracking-widest font-bold">Rejoin Engine</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -219,37 +271,42 @@ export function Dashboard() {
             <div className="p-8 bg-[#0a0a0a] rounded-3xl border border-white/5 space-y-8">
               <div>
                 <h3 className="text-xl font-bold mb-2">Host Preferences</h3>
-                <p className="text-white/40 text-sm">Manage default WebRTC capabilities and stream behavior.</p>
+                <p className="text-white/40 text-sm">Manage defaults used when initiating new broadcast sessions.</p>
               </div>
 
               <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 gap-4">
                   <div>
-                    <h4 className="font-semibold text-sm">Force Hardware Acceleration</h4>
-                    <p className="text-xs text-white/40 mt-1">Prefer GPU encoders to heavily reduce CPU loads during 4K streaming.</p>
+                    <h4 className="font-semibold text-sm flex items-center gap-2"><Monitor className="w-4 h-4 text-blue-400"/> Default Stream Quality</h4>
+                    <p className="text-xs text-white/40 mt-1">Specify default WebRTC bitrate constraints explicitly loaded into new sessions.</p>
                   </div>
-                  <div className="w-12 h-6 bg-purple-500 rounded-full relative cursor-pointer">
-                    <div className="absolute right-1 top-1 bottom-1 w-4 bg-white rounded-full"></div>
+                  <div className="relative">
+                    <select 
+                      value={defaultQuality}
+                      onChange={(e) => handleQualityChange(e.target.value as QualityPreset)}
+                      className="px-4 py-2 bg-black border border-white/10 rounded-xl text-sm font-bold uppercase tracking-widest focus:outline-none focus:border-purple-500/50 appearance-none pr-8 cursor-pointer shadow-lg"
+                    >
+                      <option value="low">Low (500k)</option>
+                      <option value="medium">Medium (2.5M)</option>
+                      <option value="high">High (8M)</option>
+                      <option value="source">Source (15M)</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <ArrowRight className="w-3 h-3 text-white/40 rotate-90" />
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                <div 
+                  className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                  onClick={toggleAutoMute}
+                >
                   <div>
-                    <h4 className="font-semibold text-sm">Auto-Start Microphones</h4>
-                    <p className="text-xs text-white/40 mt-1">Automatically request microphone access when opening a new stream.</p>
+                    <h4 className="font-semibold text-sm flex items-center gap-2"><Key className="w-4 h-4 text-purple-400"/> Default Start Muted</h4>
+                    <p className="text-xs text-white/40 mt-1">If enabled, your host session will default the microphone transmission track to muted.</p>
                   </div>
-                  <div className="w-12 h-6 bg-white/10 rounded-full relative cursor-pointer">
-                    <div className="absolute left-1 top-1 bottom-1 w-4 bg-white/50 rounded-full"></div>
-                  </div>
-                </div>
-
-                 <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                  <div>
-                    <h4 className="font-semibold text-sm text-red-400">Strict Viewer DRM</h4>
-                    <p className="text-xs text-red-400/50 mt-1">Aggressively disconnect viewers flagged for saving screen streams.</p>
-                  </div>
-                  <div className="w-12 h-6 bg-white/10 rounded-full relative cursor-pointer">
-                    <div className="absolute left-1 top-1 bottom-1 w-4 bg-white/50 rounded-full"></div>
+                  <div className={`w-12 h-6 rounded-full relative transition-colors ${autoMuteMic ? 'bg-purple-500' : 'bg-white/10'}`}>
+                    <div className={`absolute top-1 bottom-1 w-4 rounded-full transition-all ${autoMuteMic ? 'right-1 bg-white' : 'left-1 bg-white/50'}`}></div>
                   </div>
                 </div>
               </div>

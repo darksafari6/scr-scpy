@@ -1,4 +1,4 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video, AlertCircle, Settings2 } from 'lucide-react';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video, AlertCircle, Settings2, MessageSquare, Send, Activity } from 'lucide-react';
 import { useWebRTC, QualityPreset } from '../hooks/useWebRTC';
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -11,12 +11,16 @@ export function Room() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
-  const [shareAudio, setShareAudio] = useState(false);
-  const [shareMic, setShareMic] = useState(false);
+  const [shareAudio, setShareAudio] = useState(true);
+  const [shareMic, setShareMic] = useState(localStorage.getItem('safaricast_mic') !== 'true');
   const [isTrueHost, setIsTrueHost] = useState<boolean | null>(null);
   const [showHostPrompt, setShowHostPrompt] = useState(false);
-  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
   
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
   if (!roomId) return null;
 
   useEffect(() => {
@@ -57,10 +61,18 @@ export function Room() {
     startRecording,
     stopRecording,
     quality,
-    changeQuality
+    changeQuality,
+    messages,
+    sendMessage,
+    connectionQuality
   } = useWebRTC(roomId);
 
   const isBroadcaster = role === 'broadcaster';
+
+  // scroll chat to bottom when messages change
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleShareClick = () => {
     if (isTrueHost) {
@@ -97,6 +109,16 @@ export function Room() {
     }
   };
 
+  const getQualityColor = () => {
+    switch (connectionQuality) {
+      case 'Excellent': return 'text-green-400 bg-green-500/10 border-green-500/20';
+      case 'Good': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+      case 'Fair': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+      case 'Poor': return 'text-red-400 bg-red-500/10 border-red-500/20';
+      default: return 'text-white/40 bg-white/5 border-white/10';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col font-sans relative overflow-hidden">
       {/* Aesthetic background glows */}
@@ -112,23 +134,23 @@ export function Room() {
           >
             <ArrowLeft className="w-5 h-5 text-white/70" />
           </button>
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="text-[10px] text-white/50 uppercase tracking-widest font-mono">Room ID</div>
-              <div className="font-mono text-lg font-bold tracking-widest text-purple-400">{roomId}</div>
+          <div 
+            onClick={copyLink}
+            className="group flex items-center gap-3 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 pl-4 pr-2 py-1.5 rounded-2xl transition-all"
+            title="Copy room link to share"
+          >
+            <div className="flex flex-col">
+              <span className="text-[9px] text-white/40 uppercase tracking-[0.2em] font-mono leading-none mb-1">Session Key</span>
+              <span className="font-mono text-xl md:text-2xl font-black tracking-[0.25em] text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 leading-none">{roomId}</span>
             </div>
-            <button
-              onClick={copyLink}
-              title="Copy link"
-              className="p-1.5 hover:bg-white/10 rounded-md transition-colors text-white/50 hover:text-white"
-            >
-              {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-            </button>
+            <div className="p-2 bg-white/5 group-hover:bg-purple-500/20 rounded-xl transition-colors">
+              {copied ? <CheckCircle2 className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-purple-400/50 group-hover:text-purple-400" />}
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-4 md:gap-6">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mr-4">
             <Users className="w-4 h-4 text-white/50" />
             <span className="text-sm font-mono text-white/80">{activePeers}</span>
           </div>
@@ -213,12 +235,26 @@ export function Room() {
               </button>
             </div>
           )}
+
+          <div className="flex items-center ml-4 pl-4 border-l border-white/10">
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className={`p-2 border rounded-xl transition-all relative ${isChatOpen ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10'}`}
+                title="Toggle Chat"
+              >
+                <MessageSquare className="w-5 h-5" />
+                {messages.length > 0 && !isChatOpen && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-[#050505]" />
+                )}
+              </button>
+          </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 z-10 relative">
-        {error && (
+      <main className="flex-1 flex overflow-hidden z-10 relative">
+        <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto relative">
+          {error && (
           <div className="absolute top-8 p-4 bg-red-950/80 border border-red-500/50 rounded-xl text-red-200 flex items-start gap-3 max-w-xl w-full backdrop-blur-md shadow-[0_0_30px_rgba(239,68,68,0.2)] z-50">
             <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-400" />
             <p className="text-sm font-medium leading-relaxed flex-1">{error}</p>
@@ -293,11 +329,78 @@ export function Room() {
           )}
         </div>
 
-        {/* Status bar */}
-        <div className="mt-8 flex items-center gap-3 text-xs uppercase tracking-widest text-white/40 font-mono">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          {isStreaming ? (isBroadcaster ? 'Live - Broadcasting' : 'Live - Viewing') : 'Secure WebRTC Connection Enabled'}
+          {/* Connection Quality Indicator */}
+          <div className={`mt-6 mb-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center justify-center gap-2 ${getQualityColor()} transition-colors shadow-lg`}>
+            <Activity className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-mono tracking-widest font-bold">Network: {connectionQuality}</span>
+          </div>
+
+          {/* Status bar */}
+          <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-white/40 font-mono">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            {isStreaming ? (isBroadcaster ? 'Live - Broadcasting' : 'Live - Viewing') : 'Secure WebRTC Connection Enabled'}
+          </div>
         </div>
+
+        {/* Chat Sidebar */}
+        {isChatOpen && (
+          <aside className="w-80 border-l border-white/10 bg-[#0a0a0a]/90 backdrop-blur-md flex flex-col h-full z-20 shrink-0">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h3 className="font-semibold uppercase tracking-widest text-sm text-white/80 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-blue-400" /> Room Chat
+              </h3>
+              <button onClick={() => setIsChatOpen(false)} className="p-1 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 ? (
+                <div className="text-center text-white/30 text-xs font-mono uppercase tracking-widest mt-10">
+                  No messages yet. Say hello!
+                </div>
+              ) : (
+                messages.map((msg, i) => (
+                  <div key={i} className={`flex flex-col ${msg.senderId === 'Me' ? 'items-end' : 'items-start'}`}>
+                    <span className="text-[10px] text-white/40 uppercase tracking-wider mb-1 px-1">{msg.senderId}</span>
+                    <div className={`px-3 py-2 rounded-2xl max-w-[90%] text-sm ${msg.senderId === 'Me' ? 'bg-blue-600/50 border border-blue-500/20 text-blue-50 rounded-tr-sm' : 'bg-white/10 border border-white/5 text-white/90 rounded-tl-sm'}`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!chatInput.trim()) return;
+                const senderName = user?.displayName || user?.email?.split('@')[0] || (role === 'broadcaster' ? 'Host' : 'Viewer');
+                sendMessage(chatInput, senderName);
+                setChatInput('');
+              }}
+              className="p-4 border-t border-white/10 bg-black/50"
+            >
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type message..."
+                  className="w-full bg-[#111] border border-white/10 rounded-xl pl-4 pr-10 py-3 text-sm focus:outline-none focus:border-blue-500/50 transition-colors placeholder:text-white/30 text-white"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="absolute right-2 p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          </aside>
+        )}
       </main>
     </div>
   );

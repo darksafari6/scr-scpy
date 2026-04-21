@@ -40,7 +40,10 @@ export function useWebRTC(roomId: string) {
   const [displaySurface, setDisplaySurface] = useState<'monitor' | 'window'>('monitor');
   const [isRecording, setIsRecording] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [quality, setQuality] = useState<QualityPreset>('source');
+  const [quality, setQuality] = useState<QualityPreset>(() => {
+    return (localStorage.getItem('safaricast_quality') as QualityPreset) || 'source';
+  });
+  const [connectionQuality, setConnectionQuality] = useState<'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Unknown'>('Unknown');
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -77,9 +80,9 @@ export function useWebRTC(roomId: string) {
 
     pc.onconnectionstatechange = () => {
       console.log(`Connection state with ${targetId}:`, pc.connectionState);
-      if (pc.connectionState === 'failed') {
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
         if (roleRef.current === 'viewer') {
-          setError('Connection to host failed. Your firewall, corporate network, or VPN might be blocking WebRTC traffic.');
+          setError('Connection dropped or failed. The host may have disconnected, or a firewall/VPN might be blocking WebRTC traffic.');
         }
       } else if (pc.connectionState === 'connected') {
         if (roleRef.current === 'viewer') {
@@ -98,6 +101,25 @@ export function useWebRTC(roomId: string) {
     };
 
     pc.oniceconnectionstatechange = () => {
+      switch(pc.iceConnectionState) {
+        case 'completed': 
+          setConnectionQuality('Excellent');
+          break;
+        case 'connected':
+          setConnectionQuality('Good');
+          break;
+        case 'checking':
+          setConnectionQuality('Fair');
+          break;
+        case 'disconnected':
+        case 'failed':
+        case 'closed':
+          setConnectionQuality('Poor');
+          break;
+        default:
+          setConnectionQuality('Unknown');
+      }
+
       if (pc.iceConnectionState === 'failed') {
         if (roleRef.current === 'viewer') {
           setError('Network routing failed (ICE error). Try disabling any active VPNs, Proxies, or strict Ad-blockers.');
@@ -482,6 +504,7 @@ export function useWebRTC(roomId: string) {
     messages,
     sendMessage,
     quality,
-    changeQuality
+    changeQuality,
+    connectionQuality
   };
 }
