@@ -1,4 +1,4 @@
-import { Share, Play } from 'lucide-react';
+import { Share, Play, Loader2 } from 'lucide-react';
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,6 +6,7 @@ import { loginWithGoogle } from '../lib/auth';
 
 export function Home() {
   const [roomId, setRoomId] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   
@@ -13,6 +14,20 @@ export function Home() {
     e.preventDefault();
     if (roomId.trim() !== '') {
       navigate(`/room/${roomId.trim().toUpperCase()}`);
+    }
+  };
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      console.error(error);
+      if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
+        alert('Failed to sign in securely. Please ensure popups are allowed for this site and try again.');
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -33,10 +48,12 @@ export function Home() {
             </button>
           ) : (
             <button
-               onClick={loginWithGoogle}
-               className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-sm font-semibold tracking-wide shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-colors"
+               onClick={handleLogin}
+               disabled={isLoggingIn}
+               className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-sm font-semibold tracking-wide shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Host a Screen
+              {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              <span>Host a Screen</span>
             </button>
           )
         )}
