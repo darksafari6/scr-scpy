@@ -1,15 +1,16 @@
 import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
-interface RoomProps {
-  roomId: string;
-  onLeave: () => void;
-}
-
-export function Room({ roomId, onLeave }: RoomProps) {
+export function Room() {
+  const { roomId } = useParams<{ roomId: string }>();
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [shareAudio, setShareAudio] = useState(false);
+  
+  if (!roomId) return null;
+
   const {
     videoRef,
     role,
@@ -28,6 +29,11 @@ export function Room({ roomId, onLeave }: RoomProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleLeave = () => {
+    stopBroadcasting();
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col font-sans relative overflow-hidden">
       {/* Aesthetic background glows */}
@@ -38,7 +44,7 @@ export function Room({ roomId, onLeave }: RoomProps) {
       <header className="flex items-center justify-between p-4 md:p-6 border-b border-white/10 bg-[#050505]/80 backdrop-blur-md z-10 w-full">
         <div className="flex items-center gap-4">
           <button 
-            onClick={onLeave}
+            onClick={handleLeave}
             className="p-2 hover:bg-white/10 rounded-xl transition-colors border border-transparent hover:border-white/10"
           >
             <ArrowLeft className="w-5 h-5 text-white/70" />

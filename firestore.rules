@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // Validation Helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['email']) 
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 200
+        && (data.get('displayName', '') is string) && (data.get('displayName', '').size() <= 100)
+        && (data.get('photoURL', '') is string) && (data.get('photoURL', '').size() <= 1000);
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['hostId', 'name', 'status'])
+        && data.hostId is string && data.hostId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.status is string && data.status in ['active', 'ended'];
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      // Validate the path id prevents poisoning
+      allow read: if isSignedIn() && isValidId(userId);
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'lastLoginAt']);
+    }
+
+    // 2. Rooms Collection
+    match /rooms/{roomId} {
+      // Direct lookups are allowed if you have the ID (viewers joining)
+      allow get: if isValidId(roomId);
+      
+      // List queries are ONLY allowed for the owner (the Dashboard query)
+      allow list: if isSignedIn() && existing().hostId == request.auth.uid;
+
+      allow create: if isSignedIn() 
+        && isValidId(roomId)
+        && isValidRoom(incoming())
+        && incoming().hostId == request.auth.uid
+        && incoming().createdAt == request.time;
+
+      allow update: if isSignedIn() 
+        && isValidId(roomId)
+        && existing().hostId == request.auth.uid
+        && isValidRoom(incoming())
+        && incoming().hostId == existing().hostId // Immutable owner
+        && incoming().createdAt == existing().createdAt // Immutable timestamp
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'endedAt']);
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Public user profile information",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": ["string", "null"] },
+        "photoURL": { "type": ["string", "null"] },
+        "lastLoginAt": { "type": "object" }
+      },
+      "required": ["email"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "A screen sharing session",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string", "description": "UID of the user who created the room" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "ended"] },
+        "createdAt": { "type": "object" },
+        "endedAt": { "type": ["object", "null"] }
+      },
+      "required": ["hostId", "name", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles"
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/Room" },
+      "description": "Stores active and past streaming rooms"
+    }
+  }
+}
