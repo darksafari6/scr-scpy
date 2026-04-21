@@ -1,5 +1,5 @@
 import { Share, Play, Loader2 } from 'lucide-react';
-import { useState, FormEvent } from 'react';
+import { useState, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { loginWithGoogle } from '../lib/auth';
@@ -7,6 +7,7 @@ import { loginWithGoogle } from '../lib/auth';
 export function Home() {
   const [roomId, setRoomId] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const authInProgress = useRef(false);
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   
@@ -18,15 +19,21 @@ export function Home() {
   };
 
   const handleLogin = async () => {
+    if (authInProgress.current) return;
+    authInProgress.current = true;
     setIsLoggingIn(true);
+    
     try {
       await loginWithGoogle();
     } catch (error: any) {
       console.error(error);
-      if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
+      if (error.code === 'auth/popup-blocked') {
+        alert('Popup blocked by your browser. Please allow popups for this site and try again.');
+      } else if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
         alert('Failed to sign in securely. Please ensure popups are allowed for this site and try again.');
       }
     } finally {
+      authInProgress.current = false;
       setIsLoggingIn(false);
     }
   };
