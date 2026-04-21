@@ -159,7 +159,7 @@ export function useWebRTC(roomId: string) {
     };
   }, [roomId]); // Emulate empty dependency by only depending on roomId
 
-  const startBroadcasting = async () => {
+  const startBroadcasting = async (withAudio: boolean = false) => {
     try {
       setError(null);
       const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -167,7 +167,7 @@ export function useWebRTC(roomId: string) {
           cursor: 'always',
           displaySurface: 'monitor',
         } as MediaTrackConstraints,
-        audio: false, // keep it simple, typically you can prompt audio too
+        audio: withAudio,
       });
 
       localStreamRef.current = stream;

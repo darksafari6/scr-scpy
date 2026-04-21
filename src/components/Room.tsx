@@ -1,4 +1,4 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2 } from 'lucide-react';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useState } from 'react';
 
@@ -9,6 +9,7 @@ interface RoomProps {
 
 export function Room({ roomId, onLeave }: RoomProps) {
   const [copied, setCopied] = useState(false);
+  const [shareAudio, setShareAudio] = useState(false);
   const {
     videoRef,
     role,
@@ -57,8 +58,8 @@ export function Room({ roomId, onLeave }: RoomProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+        <div className="flex items-center gap-4 md:gap-6">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
             <Users className="w-4 h-4 text-white/50" />
             <span className="text-sm font-mono text-white/80">{activePeers}</span>
           </div>
@@ -72,13 +73,22 @@ export function Room({ roomId, onLeave }: RoomProps) {
               <span className="hidden sm:inline">Stop Share</span>
             </button>
           ) : (
-            <button
-              onClick={startBroadcasting}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] rounded-xl text-sm font-semibold uppercase tracking-widest transition-all flex items-center gap-2"
-            >
-              <MonitorUp className="w-4 h-4" />
-              <span className="hidden sm:inline">Share Screen</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShareAudio(!shareAudio)}
+                title={shareAudio ? "System audio sharing enabled" : "System audio sharing disabled"}
+                className={`p-2 border rounded-xl transition-all ${shareAudio ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10'}`}
+              >
+                {shareAudio ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={() => startBroadcasting(shareAudio)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] rounded-xl text-sm font-semibold uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <MonitorUp className="w-4 h-4" />
+                <span className="hidden sm:inline">Share Screen</span>
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -98,7 +108,8 @@ export function Room({ roomId, onLeave }: RoomProps) {
             ref={videoRef}
             autoPlay
             playsInline
-            muted={isBroadcaster} // Mute our own stream to avoid feedback, though we technically don't capture audio
+            controls={!isBroadcaster} // Show standard browser controls to viewers for volume control
+            muted={isBroadcaster} // Mute our own stream to avoid feedback locally
             className={`w-full h-full object-contain ${!isStreaming ? 'hidden' : ''}`}
           />
 
