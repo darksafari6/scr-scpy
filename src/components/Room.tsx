@@ -1,4 +1,4 @@
-import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video, AlertCircle, Settings2, MessageSquare, Send, Activity } from 'lucide-react';
+import { MonitorUp, MonitorX, Users, ArrowLeft, Loader2, Info, Copy, CheckCircle2, Volume2, VolumeX, Mic, MicOff, LayoutTemplate, Monitor, X, PlaySquare, StopCircle, Focus, PictureInPicture, Video, AlertCircle, Settings2, MessageSquare, Send, Activity, Wifi } from 'lucide-react';
 import { useWebRTC, QualityPreset } from '../hooks/useWebRTC';
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -64,7 +64,8 @@ export function Room() {
     changeQuality,
     messages,
     sendMessage,
-    connectionQuality
+    connectionQuality,
+    networkStats
   } = useWebRTC(roomId);
 
   const isBroadcaster = role === 'broadcaster';
@@ -329,10 +330,28 @@ export function Room() {
           )}
         </div>
 
-          {/* Connection Quality Indicator */}
-          <div className={`mt-6 mb-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center justify-center gap-2 ${getQualityColor()} transition-colors shadow-lg`}>
-            <Activity className="w-3.5 h-3.5" />
-            <span className="text-[10px] uppercase font-mono tracking-widest font-bold">Network: {connectionQuality}</span>
+          {/* Connection Quality & Stats Indicator */}
+          <div className="flex items-center gap-2 mt-6 mb-2">
+            <div className={`px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center justify-center gap-2 ${getQualityColor()} transition-colors shadow-lg`}>
+              <Activity className="w-3.5 h-3.5" />
+              <span className="text-[10px] uppercase font-mono tracking-widest font-bold">Network: {connectionQuality}</span>
+            </div>
+            {isStreaming && networkStats.latency > 0 && (
+              <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center gap-2 text-white/60 transition-colors shadow-lg group relative cursor-help">
+                <Wifi className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-[10px] uppercase font-mono tracking-widest font-bold">
+                  {networkStats.latency}ms
+                </span>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-4 py-3 bg-black/90 border border-white/10 rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-2xl backdrop-blur-md">
+                  <div className="flex flex-col gap-2 font-mono uppercase tracking-wider text-[10px]">
+                    <div className="flex justify-between gap-6"><span className="text-white/40">Latency</span><span className="text-white">{networkStats.latency} ms ping</span></div>
+                    <div className="flex justify-between gap-6"><span className="text-white/40">Bandwidth</span><span className="text-white">{networkStats.bitrate > 1000 ? (networkStats.bitrate / 1000).toFixed(1) + ' Mbps' : networkStats.bitrate + ' Kbps'}</span></div>
+                  </div>
+                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-black/90 border-b border-r border-white/10 rotate-45 transform"></div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Status bar */}

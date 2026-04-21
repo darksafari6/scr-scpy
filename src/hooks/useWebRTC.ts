@@ -44,9 +44,11 @@ export function useWebRTC(roomId: string) {
     return (localStorage.getItem('safaricast_quality') as QualityPreset) || 'source';
   });
   const [connectionQuality, setConnectionQuality] = useState<'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Unknown'>('Unknown');
+  const [networkStats, setNetworkStats] = useState({ latency: 0, bitrate: 0 });
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const lastBytesRef = useRef(new Map<string, { timestamp: number, bytes: number }>());
   const localStreamRef = useRef<MediaStream | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -243,6 +245,73 @@ export function useWebRTC(roomId: string) {
       }
     };
   }, [roomId]); // Emulate empty dependency by only depending on roomId
+
+  useEffect(() => {
+    if (!isStreaming) {
+      setNetworkStats({ latency: 0, bitrate: 0 });
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      let totalLatency = 0;
+      let validLatencyCount = 0;
+      let totalBytesReceived = 0;
+      let totalBytesSent = 0;
+      const now = performance.now();
+
+      for (const [targetId, pc] of peerConnectionsRef.current.entries()) {
+        try {
+          const stats = await pc.getStats();
+          let currentBytesRx = 0;
+          let currentBytesTx = 0;
+
+          stats.forEach(report => {
+            // Calculate latency (RTT)
+            if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime !== undefined) {
+              totalLatency += report.currentRoundTripTime * 1000;
+              validLatencyCount++;
+            }
+            
+            // Calculate byte delta
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+              currentBytesRx += report.bytesReceived || 0;
+            } else if (report.type === 'outbound-rtp' && report.kind === 'video') {
+              currentBytesTx += report.bytesSent || 0;
+            }
+          });
+
+          // Compute bitrate against last mapped check
+          const last = lastBytesRef.current.get(targetId);
+          const currentRelevantBytes = roleRef.current === 'broadcaster' ? currentBytesTx : currentBytesRx;
+          
+          if (last) {
+            const deltaBytes = currentRelevantBytes - last.bytes;
+            const deltaTime = (now - last.timestamp) / 1000;
+            if (deltaBytes > 0 && deltaTime > 0) {
+              if (roleRef.current === 'broadcaster') {
+                totalBytesSent += (deltaBytes * 8) / deltaTime;
+              } else {
+                totalBytesReceived += (deltaBytes * 8) / deltaTime;
+              }
+            }
+          }
+          lastBytesRef.current.set(targetId, { timestamp: now, bytes: currentRelevantBytes });
+
+        } catch (e) {
+          console.error("Error reading stats pipeline", e);
+        }
+      }
+
+      const avgLatency = validLatencyCount > 0 ? Math.round(totalLatency / validLatencyCount) : 0;
+      const sumBitrate = roleRef.current === 'broadcaster' ? totalBytesSent : totalBytesReceived;
+      const totalKilobits = Math.round(sumBitrate / 1000);
+
+      setNetworkStats({ latency: avgLatency, bitrate: totalKilobits });
+
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
   const startBroadcasting = async (withSystemAudio: boolean = false, withMic: boolean = false) => {
     try {
@@ -505,6 +574,7 @@ export function useWebRTC(roomId: string) {
     sendMessage,
     quality,
     changeQuality,
-    connectionQuality
+    connectionQuality,
+    networkStats
   };
 }
