@@ -3,7 +3,7 @@ import { useWebRTC, QualityPreset } from '../hooks/useWebRTC';
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 export function Room() {
@@ -37,7 +37,7 @@ export function Room() {
           setIsTrueHost(false);
         }
       } catch (e) {
-        console.error("Could not verify host status", e);
+        handleFirestoreError(e, 'get', `rooms/${roomId}`);
         setIsTrueHost(false);
       }
     }
@@ -156,9 +156,23 @@ export function Room() {
             <span className="text-sm font-mono text-white/80">{activePeers}</span>
           </div>
 
+          {isBroadcaster && (
+            <div className="hidden lg:flex items-center bg-white/5 border border-white/10 rounded-xl p-1 mr-2">
+              {(['low', 'medium', 'high', 'source'] as QualityPreset[]).map(q => (
+                <button
+                  key={q}
+                  onClick={() => changeQuality(q)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${quality === q ? 'bg-purple-500 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
           {isBroadcaster ? (
             <div className="flex items-center gap-2">
-              <div className="relative group mr-2">
+              <div className="lg:hidden relative group mr-2">
                 <button className="p-2 border rounded-xl transition-all bg-white/5 text-white/80 border-white/10 hover:bg-white/10 flex items-center gap-1" title="Quality Settings">
                   <Settings2 className="w-4 h-4" />
                 </button>

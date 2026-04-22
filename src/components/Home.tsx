@@ -72,28 +72,44 @@ export function Home() {
         />
         
         {/* Data Packets Animation (Overlay) */}
-        <div className="absolute inset-0 overflow-hidden opacity-30">
+        <div className="absolute inset-0 overflow-hidden opacity-20">
           <svg className="w-full h-full">
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.03"/>
+            <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.05"/>
             </pattern>
             <rect width="100%" height="100%" fill="url(#grid)" />
           </svg>
         </div>
 
         {/* Dynamic Packet Lines */}
-        {[...Array(6)].map((_, i) => (
+        {[...Array(12)].map((_, i) => (
           <motion.div
             key={i}
-            initial={{ x: "-100%", y: `${15 * (i + 1)}%` }}
+            initial={{ x: "-100%", y: `${8 * (i + 1)}%` }}
             animate={{ x: "200%" }}
             transition={{ 
-              duration: 8 + i * 2, 
+              duration: 5 + Math.random() * 10, 
               repeat: Infinity, 
               ease: "linear",
-              delay: i * 3
+              delay: Math.random() * 10
             }}
-            className="absolute h-[1px] w-64 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent blur-[1px]"
+            className="absolute h-[1px] w-64 bg-gradient-to-r from-transparent via-blue-500/30 to-transparent blur-[1px]"
+          />
+        ))}
+
+        {/* Floating Data Nodes (Packets) */}
+        {[...Array(8)].map((_, i) => (
+          <motion.div
+            key={`node-${i}`}
+            initial={{ y: "110%", x: `${Math.random() * 100}%` }}
+            animate={{ y: "-10%" }}
+            transition={{ 
+              duration: 15 + Math.random() * 10, 
+              repeat: Infinity, 
+              ease: "linear",
+              delay: Math.random() * 20
+            }}
+            className="absolute w-1 h-1 bg-purple-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]"
           />
         ))}
 
@@ -190,7 +206,7 @@ export function Home() {
             transition={{ duration: 1, delay: 0.1 }}
             className="group relative p-1 rounded-[2.5rem] bg-gradient-to-br from-white/10 to-transparent transition-all hover:scale-[1.02]"
           >
-            <div className="p-8 md:p-12 bg-[#080808] border border-white/5 rounded-[2.4rem] shadow-[0_30px_100px_rgba(0,0,0,0.8)] h-full flex flex-col relative overflow-hidden backdrop-blur-3xl">
+            <div className="p-8 md:p-12 bg-[#080808] border border-white/5 rounded-[2.4rem] shadow-[0_50px_150px_rgba(0,0,0,0.9),0_0_2px_rgba(255,255,255,0.05)] h-full flex flex-col relative overflow-hidden backdrop-blur-3xl">
               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-purple-500/5 rounded-full blur-[80px] group-hover:bg-purple-500/10 transition-colors" />
               <div className="relative z-10 flex flex-col h-full space-y-12">
                 <div className="flex items-center justify-between">
@@ -234,7 +250,7 @@ export function Home() {
             transition={{ duration: 1, delay: 0.2 }}
             className="group relative p-1 rounded-[2.5rem] bg-gradient-to-br from-purple-500/20 to-transparent transition-all hover:scale-[1.02]"
           >
-            <div className="p-8 md:p-12 bg-gradient-to-br from-[#0a0610] to-[#050505] border border-purple-500/20 rounded-[2.4rem] shadow-[0_30px_100px_rgba(168,85,247,0.15)] h-full flex flex-col relative overflow-hidden backdrop-blur-3xl">
+            <div className="p-8 md:p-12 bg-gradient-to-br from-[#0a0610] to-[#050505] border border-purple-500/20 rounded-[2.4rem] shadow-[0_50px_150px_rgba(168,85,247,0.2),0_0_2px_rgba(168,85,247,0.1)] h-full flex flex-col relative overflow-hidden backdrop-blur-3xl">
               <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-blue-500/5 rounded-full blur-[80px] group-hover:bg-blue-500/10 transition-colors" />
               <div className="relative z-10 flex flex-col h-full space-y-12">
                 <div className="flex items-center justify-between">
@@ -385,6 +401,29 @@ export function Home() {
             </div>
           </div>
         </motion.div>
+
+        {/* Roadmap / Industry Section - Making it "Longer" */}
+        <div className="w-full max-w-6xl mb-48 space-y-24">
+          <div className="text-center space-y-4">
+             <h2 className="text-3xl md:text-5xl font-black tracking-tighter font-display uppercase">Technical Roadmap</h2>
+             <p className="text-white/30 font-mono text-xs tracking-[0.3em] uppercase">Phase 4 Infrastructure Expansion</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-4">
+             {[
+               { q: 'Q2 2026', title: 'AV1 Encoding', status: 'Deployment Init', desc: 'Implementing next-gen royalty-free video codec support for 30% improved efficiency.' },
+               { q: 'Q3 2026', title: 'QUIC Protocol', status: 'R&D Phase', desc: 'Migrating signaling to UDP-based QUIC for improved reliability in packet-loss scenarios.' },
+               { q: 'Q4 2026', title: 'Peer Isolation', status: 'Scheduled', desc: 'Zero-knowledge sub-networks for high-compliance government and medical entities.' }
+             ].map((item, i) => (
+                <div key={i} className="p-8 bg-white/5 border border-white/10 rounded-3xl space-y-4 hover:border-white/20 transition-all">
+                   <div className="text-[10px] font-mono text-purple-400 bg-purple-500/10 px-2 py-1 rounded-md w-fit tracking-widest">{item.q}</div>
+                   <h3 className="text-xl font-bold font-display">{item.title}</h3>
+                   <div className="text-[10px] uppercase tracking-widest text-white/20 font-bold">{item.status}</div>
+                   <p className="text-white/40 text-sm leading-relaxed">{item.desc}</p>
+                </div>
+             ))}
+          </div>
+        </div>
 
       </main>
 

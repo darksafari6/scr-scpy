@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError } from '../lib/firebase';
 import { collection, query, getDocs, setDoc, doc, serverTimestamp, deleteDoc, where, Timestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Plus, Share, History, Video, ArrowRight, LayoutDashboard, Settings, Activity, Trash2, PanelLeftClose, PanelLeft, Monitor, Key } from 'lucide-react';
@@ -44,7 +44,7 @@ export function Dashboard() {
         fetchedRooms.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
         setRooms(fetchedRooms);
       } catch (error) {
-        console.error("Error fetching rooms", error);
+        handleFirestoreError(error, 'list', 'rooms');
       } finally {
         setLoadingRooms(false);
       }
@@ -59,15 +59,19 @@ export function Dashboard() {
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const roomRef = doc(db, 'rooms', newRoomId);
     
-    await setDoc(roomRef, {
-      hostId: user.uid,
-      name: `Stream Session ${newRoomId}`,
-      status: 'active',
-      createdAt: serverTimestamp(),
-      endedAt: null
-    });
+    try {
+      await setDoc(roomRef, {
+        hostId: user.uid,
+        name: `Stream Session ${newRoomId}`,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        endedAt: null
+      });
 
-    navigate(`/room/${newRoomId}`);
+      navigate(`/room/${newRoomId}`);
+    } catch (err) {
+      handleFirestoreError(err, 'create', `rooms/${newRoomId}`);
+    }
   };
 
   const handleDeleteRoom = async (e: React.MouseEvent, id: string) => {
@@ -78,7 +82,7 @@ export function Dashboard() {
       await deleteDoc(doc(db, 'rooms', id));
       setRooms(prev => prev.filter(r => r.id !== id));
     } catch (err) {
-      console.error("Failed to delete room:", err);
+      handleFirestoreError(err, 'delete', `rooms/${id}`);
     }
   };
 
@@ -107,6 +111,15 @@ export function Dashboard() {
             </div>
             {isSidebarOpen && <h1 className="font-bold uppercase tracking-widest text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60 whitespace-nowrap">SafariCast</h1>}
           </div>
+
+          <button
+            onClick={createRoom}
+            className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-4' : 'justify-center px-0'} py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-bold uppercase tracking-[0.15em] text-[10px] transition-all shadow-lg shadow-purple-900/40 active:scale-95 border border-white/10`}
+            title="New Stream Session"
+          >
+            <Plus className="w-5 h-5 shrink-0" />
+            {isSidebarOpen && <span>New Session</span>}
+          </button>
 
           <nav className="space-y-2">
             <button 
@@ -178,14 +191,6 @@ export function Dashboard() {
                 <p className="text-white/40 uppercase tracking-widest text-xs font-mono">Manage your secure streaming infrastructure</p>
               </div>
             </div>
-            
-            <button
-              onClick={createRoom}
-              className="flex items-center justify-center auto-cols-min gap-2 px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)]"
-            >
-              <Plus className="w-5 h-5" />
-              <span>New Stream Session</span>
-            </button>
           </div>
 
           {activeTab === 'sessions' && (

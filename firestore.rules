@@ -59,6 +59,10 @@ service cloud.firestore {
         && incoming().hostId == existing().hostId // Immutable owner
         && incoming().createdAt == existing().createdAt // Immutable timestamp
         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'endedAt']);
+
+      allow delete: if isSignedIn() 
+        && isValidId(roomId)
+        && existing().hostId == request.auth.uid;
     }
   }
 }
