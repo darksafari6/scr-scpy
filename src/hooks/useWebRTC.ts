@@ -55,11 +55,37 @@ export function useWebRTC(roomId: string) {
   const roleRef = useRef<'viewer' | 'broadcaster'>('viewer');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateRole = useCallback((newRole: 'viewer' | 'broadcaster') => {
     roleRef.current = newRole;
     setRole(newRole);
   }, []);
+
+  const attemptReconnection = useCallback(() => {
+    if (roleRef.current !== 'viewer') return;
+    
+    if (reconnectAttemptsRef.current >= 5) {
+      setError('Connection lost. Maximum reconnection attempts reached. Please refresh.');
+      setConnectionQuality('Poor');
+      return;
+    }
+
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+
+    reconnectAttemptsRef.current += 1;
+    const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 10000);
+
+    setError(`Connection unstable. Reconnecting in ${Math.round(delay/1000)}s... (Attempt ${reconnectAttemptsRef.current}/5)`);
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      if (socketRef.current && socketRef.current.connected) {
+        console.log(`Re-emitting join-room to ping the host (Attempt ${reconnectAttemptsRef.current})`);
+        socketRef.current.emit('join-room', roomId, 'viewer');
+      }
+    }, delay);
+  }, [roomId]);
 
   const createPeerConnection = (targetId: string, isInitiator: boolean) => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -82,11 +108,12 @@ export function useWebRTC(roomId: string) {
 
     pc.onconnectionstatechange = () => {
       console.log(`Connection state with ${targetId}:`, pc.connectionState);
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-        if (roleRef.current === 'viewer') {
-          setError('Connection dropped or failed. The host may have disconnected, or a firewall/VPN might be blocking WebRTC traffic.');
+      if (pc.connectionState === 'connected') {
+        reconnectAttemptsRef.current = 0; // Reset
+        if (reconnectTimeoutRef.current) {
+           clearTimeout(reconnectTimeoutRef.current);
+           reconnectTimeoutRef.current = null;
         }
-      } else if (pc.connectionState === 'connected') {
         if (roleRef.current === 'viewer') {
           setError(null);
         }
@@ -98,6 +125,7 @@ export function useWebRTC(roomId: string) {
         if (roleRef.current === 'viewer') {
           setIsStreaming(false);
           if (videoRef.current) videoRef.current.srcObject = null;
+          attemptReconnection();
         }
       }
     };
@@ -163,6 +191,12 @@ export function useWebRTC(roomId: string) {
 
     socket.on('viewer-joined', async (viewerId: string) => {
       if (roleRef.current === 'broadcaster') {
+        // Security check placeholder: If viewerId doesn't look like a standard socket ID or some other criteria
+        // In this case, we'll just simulate a scenario where we alert the host about unidentified peers
+        if (viewerId.includes('-unidentified')) {
+          setError('Encountered an unidentified participant. Connection may be unstable.');
+        }
+
         // We are broadcasting, create connection and offer to the viewer
         const pc = createPeerConnection(viewerId, true);
         try {
@@ -172,6 +206,13 @@ export function useWebRTC(roomId: string) {
         } catch (err) {
           console.error('Error creating offer:', err);
         }
+      }
+    });
+
+    socket.on('broadcaster-joined', () => {
+      // The host (re)joined, if we are viewer, notify them we are waiting.
+      if (roleRef.current === 'viewer') {
+        socket.emit('join-room', roomId, 'viewer');
       }
     });
 
@@ -236,7 +277,15 @@ export function useWebRTC(roomId: string) {
       setMessages((prev) => [...prev, message]);
     });
 
+    socket.on('disconnect', (reason) => {
+      console.warn('Signaling server disconnected:', reason);
+      if (roleRef.current === 'viewer') {
+        attemptReconnection();
+      }
+    });
+
     return () => {
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       socket.disconnect();
       peerConnectionsRef.current.forEach((pc) => pc.close());
       peerConnectionsRef.current.clear();
@@ -316,13 +365,33 @@ export function useWebRTC(roomId: string) {
   const startBroadcasting = async (withSystemAudio: boolean = false, withMic: boolean = false) => {
     try {
       setError(null);
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always',
-          ...QUALITY_CONSTRAINTS[quality]
-        } as MediaTrackConstraints,
-        audio: withSystemAudio, // system audio
-      });
+      let displayStream: MediaStream;
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+        try {
+          displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              cursor: 'always',
+              ...QUALITY_CONSTRAINTS[quality]
+            } as MediaTrackConstraints,
+            audio: withSystemAudio, // system audio
+          });
+        } catch (displayErr: any) {
+             console.warn("getDisplayMedia failed (maybe running on mobile/Android). Falling back to camera...", displayErr);
+             // On strict mobile browsers that completely deny screen sharing, fallback to back camera
+             displayStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', ...QUALITY_CONSTRAINTS['low'] },
+                audio: false
+             });
+        }
+      } else {
+        // Fallback for browsers that don't support getDisplayMedia (like many Mobile browsers)
+        console.warn("getDisplayMedia unsupported. Falling back to camera...");
+        displayStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', ...QUALITY_CONSTRAINTS['low'] },
+          audio: false
+        });
+      }
 
       const videoTrack = displayStream.getVideoTracks()[0];
       if ('contentHint' in videoTrack) {
@@ -377,11 +446,11 @@ export function useWebRTC(roomId: string) {
       if (err.name === 'NotAllowedError') {
         setError('Screen sharing or microphone permission was denied by the system or browser.');
       } else if (err.name === 'NotFoundError') {
-        setError('No eligible screen or window was found to share, or no microphone detected.');
+        setError('No eligible screen or camera was found to share, or no microphone detected.');
       } else if (err.name === 'NotReadableError') {
-        setError('Hardware error. Another application might be locking your mic or screen capture.');
+        setError('Hardware error. Another application might be locking your mic or camera/screen capture.');
       } else {
-        setError('Could not access screen or microphone. Ensure you have granted necessary OS permissions.');
+        setError(err.message || 'Could not access screen or microphone. Ensure you have granted necessary OS permissions for your browser.');
       }
     }
   };

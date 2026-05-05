@@ -22,6 +22,8 @@ export function Dashboard() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [activeTab, setActiveTab] = useState<'sessions' | 'settings'>('sessions');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'ended'>('all');
+  const [sortBy, setSortBy] = useState<'createdAtDesc' | 'createdAtAsc' | 'endedAtDesc'>('createdAtDesc');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [defaultQuality, setDefaultQuality] = useState<QualityPreset>((localStorage.getItem('safaricast_quality') as QualityPreset) || 'source');
   const [autoMuteMic, setAutoMuteMic] = useState<boolean>(localStorage.getItem('safaricast_mic') === 'true');
@@ -91,6 +93,35 @@ export function Dashboard() {
     localStorage.setItem('safaricast_quality', q);
   };
 
+  const filteredAndSortedRooms = React.useMemo(() => {
+    let result = [...rooms];
+    
+    // Filter
+    if (filterStatus !== 'all') {
+      result = result.filter(r => r.status === filterStatus);
+    }
+    
+    // Sort
+    result.sort((a, b) => {
+      const aCreatedAt = a.createdAt?.toMillis() || 0;
+      const bCreatedAt = b.createdAt?.toMillis() || 0;
+      const aEndedAt = a.endedAt?.toMillis() || 0;
+      const bEndedAt = b.endedAt?.toMillis() || 0;
+
+      switch (sortBy) {
+        case 'createdAtAsc':
+          return aCreatedAt - bCreatedAt;
+        case 'endedAtDesc':
+          return bEndedAt - aEndedAt; // descending end date
+        case 'createdAtDesc':
+        default:
+          return bCreatedAt - aCreatedAt; // descending creation date
+      }
+    });
+
+    return result;
+  }, [rooms, filterStatus, sortBy]);
+
   const toggleAutoMute = () => {
     const newVal = !autoMuteMic;
     setAutoMuteMic(newVal);
@@ -98,7 +129,7 @@ export function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-[#050505] text-white font-sans overflow-hidden">
+    <div className="flex h-[100dvh] bg-[#050505] text-white font-sans overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-0 left-64 w-1/2 h-1/2 bg-blue-900/10 rounded-full blur-[150px] pointer-events-none -z-10" />
 
@@ -172,7 +203,7 @@ export function Dashboard() {
           </button>
         </header>
 
-        <div className="p-6 md:p-12 max-w-6xl mx-auto space-y-12">
+        <div className="p-6 md:p-12 max-w-6xl mx-auto space-y-12 pb-32">
           
           {/* Header & Stats */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -220,8 +251,30 @@ export function Dashboard() {
 
               {/* Sessions List */}
               <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
                   <h3 className="uppercase tracking-widest text-sm font-bold font-display text-white/80">Session History</h3>
+                  
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'ended')}
+                      className="px-3 py-1.5 bg-[#0a0a0a] border border-white/10 rounded-lg text-xs font-semibold uppercase tracking-widest focus:outline-none focus:border-purple-500/50 appearance-none cursor-pointer"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="ended">Ended</option>
+                    </select>
+
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="px-3 py-1.5 bg-[#0a0a0a] border border-white/10 rounded-lg text-xs font-semibold uppercase tracking-widest focus:outline-none focus:border-purple-500/50 appearance-none cursor-pointer"
+                    >
+                      <option value="createdAtDesc">Newest Created</option>
+                      <option value="createdAtAsc">Oldest Created</option>
+                      <option value="endedAtDesc">Recently Ended</option>
+                    </select>
+                  </div>
                 </div>
 
                 {loadingRooms ? (
@@ -230,7 +283,7 @@ export function Dashboard() {
                       <div key={i} className="h-24 bg-[#0a0a0a] rounded-2xl border border-white/5"></div>
                     ))}
                   </div>
-                ) : rooms.length === 0 ? (
+                ) : filteredAndSortedRooms.length === 0 ? (
                   <div className="text-center py-24 bg-[#0a0a0a] border border-white/5 rounded-3xl">
                     <Video className="w-12 h-12 text-white/10 mx-auto mb-4" />
                     <p className="text-white/40 font-mono text-sm uppercase tracking-widest">No past sessions found.</p>
@@ -238,7 +291,7 @@ export function Dashboard() {
                   </div>
                 ) : (
                   <div className="grid gap-4">
-                    {rooms.map(room => (
+                    {filteredAndSortedRooms.map(room => (
                       <div key={room.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 bg-[#0a0a0a] border border-white/5 hover:border-white/20 rounded-2xl transition-all group gap-4">
                         <div className="flex items-start sm:items-center gap-4">
                           <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
@@ -329,6 +382,36 @@ export function Dashboard() {
 
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation (Android/iOS) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 pb-4 pt-2 px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center justify-around">
+          <button 
+            onClick={() => setActiveTab('sessions')}
+            className={`flex flex-col items-center gap-1.5 p-2 flex-1 rounded-xl transition-all ${activeTab === 'sessions' ? 'text-purple-400' : 'text-white/40 hover:text-white/80'}`}
+          >
+            <LayoutDashboard className="w-6 h-6" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Sessions</span>
+          </button>
+          
+          <div className="flex-1 flex justify-center">
+            <button 
+              onClick={createRoom}
+              className="flex flex-col items-center justify-center p-4 -mt-10 bg-purple-600 hover:bg-purple-500 text-white rounded-full shadow-[0_0_20px_rgba(168,85,247,0.4)] active:scale-95 transition-all relative z-10 border-[6px] border-[#0a0a0a]"
+            >
+              <Plus className="w-7 h-7" />
+            </button>
+          </div>
+
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`flex flex-col items-center gap-1.5 p-2 flex-1 rounded-xl transition-all ${activeTab === 'settings' ? 'text-purple-400' : 'text-white/40 hover:text-white/80'}`}
+          >
+            <Settings className="w-6 h-6" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Settings</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

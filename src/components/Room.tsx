@@ -121,39 +121,46 @@ export function Room() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col font-sans relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-[#050505] text-white flex flex-col font-sans relative overflow-hidden">
       {/* Aesthetic background glows */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-purple-900/10 rounded-full blur-[120px] pointer-events-none -z-10" />
       <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-blue-900/10 rounded-full blur-[100px] pointer-events-none -z-10" />
 
       {/* Header */}
       <header className="flex items-center justify-between p-4 md:p-6 border-b border-white/10 bg-[#050505]/80 backdrop-blur-md z-10 w-full">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <button 
             onClick={handleLeave}
-            className="p-2 hover:bg-white/10 rounded-xl transition-colors border border-transparent hover:border-white/10"
+            className="p-2 md:p-2 hover:bg-white/10 rounded-xl transition-colors border border-transparent hover:border-white/10"
           >
             <ArrowLeft className="w-5 h-5 text-white/70" />
           </button>
           <div 
             onClick={copyLink}
-            className="group flex items-center gap-3 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 pl-4 pr-2 py-1.5 rounded-2xl transition-all"
+            className="group flex items-center gap-2 md:gap-3 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 pl-3 md:pl-4 pr-2 py-1.5 rounded-2xl transition-all"
             title="Copy room link to share"
           >
-            <div className="flex flex-col">
+            <div className="flex flex-col hidden sm:flex">
               <span className="text-[9px] text-white/40 uppercase tracking-[0.2em] font-mono leading-none mb-1">Session Key</span>
               <span className="font-mono text-xl md:text-2xl font-black tracking-[0.25em] text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 leading-none">{roomId}</span>
             </div>
             <div className="p-2 bg-white/5 group-hover:bg-purple-500/20 rounded-xl transition-colors">
-              {copied ? <CheckCircle2 className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-purple-400/50 group-hover:text-purple-400" />}
+              {copied ? <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-green-400" /> : <Copy className="w-4 h-4 md:w-5 md:h-5 text-purple-400/50 group-hover:text-purple-400" />}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-6">
+        {/* Desktop Controls */}
+        <div className="hidden md:flex items-center gap-4 md:gap-6">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mr-4">
             <Users className="w-4 h-4 text-white/50" />
             <span className="text-sm font-mono text-white/80">{activePeers}</span>
+            {error?.includes('unidentified participant') && (
+              <div className="flex items-center gap-1.5 ml-1 pl-3 border-l border-white/10 group relative">
+                <AlertCircle className="w-4 h-4 text-yellow-500 animate-pulse" />
+                <span className="absolute top-full right-0 mt-2 p-2 bg-yellow-500 text-black text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">Unidentified Peer Detected</span>
+              </div>
+            )}
           </div>
 
           {isBroadcaster && (
@@ -268,14 +275,14 @@ export function Room() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex overflow-hidden z-10 relative">
-        <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto relative">
+        <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto relative pb-24 md:pb-8">
           {error && (
-          <div className="absolute top-8 p-4 bg-red-950/80 border border-red-500/50 rounded-xl text-red-200 flex items-start gap-3 max-w-xl w-full backdrop-blur-md shadow-[0_0_30px_rgba(239,68,68,0.2)] z-50">
-            <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-400" />
+          <div className={`absolute top-8 p-4 border rounded-xl flex items-start gap-3 max-w-xl w-full backdrop-blur-md shadow-2xl z-50 transition-all ${error.includes('unidentified participant') ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-200' : 'bg-red-950/80 border-red-500/50 text-red-200'}`}>
+            {error.includes('unidentified participant') ? <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-yellow-400" /> : <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-400" />}
             <p className="text-sm font-medium leading-relaxed flex-1">{error}</p>
             <button 
               onClick={clearError}
-              className="p-1 hover:bg-white/10 rounded-md transition-colors flex-shrink-0 text-white/50 hover:text-white"
+              className="p-1 hover:bg-white/10 rounded-md transition-colors flex-shrink-0 opacity-50 hover:opacity-100"
             >
               <X className="w-4 h-4" />
             </button>
@@ -435,6 +442,83 @@ export function Room() {
           </aside>
         )}
       </main>
+
+      {/* Mobile Bottom Navigation (Android/iOS) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 pb-4 pt-2 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center justify-around px-2">
+          {/* Mute Mic */}
+          <button
+            onClick={() => isBroadcaster ? toggleMic() : setShareMic(!shareMic)}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${isBroadcaster ? (!isMicMuted ? 'text-purple-400' : 'text-red-500') : (shareMic ? 'text-purple-400' : 'text-white/40')}`}
+          >
+            {(isBroadcaster && !isMicMuted) || (!isBroadcaster && shareMic) ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+            <span className="text-[10px] font-bold uppercase tracking-widest">Mic</span>
+          </button>
+
+          {/* System Audio (Viewers) or Surface Switch (Broadcaster) */}
+          {!isBroadcaster ? (
+            <button
+              onClick={() => setShareAudio(!shareAudio)}
+              className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${shareAudio ? 'text-purple-400' : 'text-white/40'}`}
+            >
+              {shareAudio ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+              <span className="text-[10px] font-bold uppercase tracking-widest">Audio</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => switchDisplaySurface(displaySurface === 'monitor' ? 'window' : 'monitor')}
+              className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all text-white/80"
+            >
+              {displaySurface === 'monitor' ? <LayoutTemplate className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
+              <span className="text-[10px] font-bold uppercase tracking-widest">Source</span>
+            </button>
+          )}
+
+          {/* Share/Stop Share */}
+          <div className="flex justify-center -mt-8 relative z-10">
+            {isBroadcaster ? (
+              <button
+                onClick={stopBroadcasting}
+                className="flex flex-col items-center justify-center p-4 bg-red-600 hover:bg-red-500 text-white rounded-full shadow-[0_0_20px_rgba(220,38,38,0.4)] active:scale-95 transition-all border-[6px] border-[#0a0a0a]"
+              >
+                <MonitorX className="w-7 h-7" />
+              </button>
+            ) : (
+              <button
+                onClick={handleShareClick}
+                className="flex flex-col items-center justify-center p-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95 transition-all border-[6px] border-[#0a0a0a]"
+              >
+                <MonitorUp className="w-7 h-7" />
+              </button>
+            )}
+          </div>
+
+          {/* Record */}
+          {isBroadcaster ? (
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${isRecording ? 'text-red-500 animate-pulse' : 'text-white/80'}`}
+            >
+              {isRecording ? <StopCircle className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+              <span className="text-[10px] font-bold uppercase tracking-widest">Rec</span>
+            </button>
+          ) : (
+            <div className="w-12"></div>
+          )}
+
+          {/* Chat */}
+          <button
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all relative ${isChatOpen ? 'text-blue-400' : 'text-white/80'}`}
+          >
+            <MessageSquare className="w-6 h-6" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Chat</span>
+            {messages.length > 0 && !isChatOpen && (
+              <span className="absolute top-1 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-[#0a0a0a]" />
+            )}
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }
