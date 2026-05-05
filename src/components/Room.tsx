@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db, handleFirestoreError } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export function Room() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -52,7 +52,7 @@ export function Room() {
     error,
     clearError,
     startBroadcasting,
-    stopBroadcasting,
+    stopBroadcasting: stopWebRTC,
     isMicMuted,
     toggleMic,
     displaySurface,
@@ -67,6 +67,20 @@ export function Room() {
     connectionQuality,
     networkStats
   } = useWebRTC(roomId);
+
+  const stopBroadcasting = async () => {
+    stopWebRTC();
+    if (isTrueHost) {
+      try {
+        await updateDoc(doc(db, 'rooms', roomId!), {
+          status: 'ended',
+          endedAt: serverTimestamp()
+        });
+      } catch (e) {
+        console.error("Failed to update room status", e);
+      }
+    }
+  };
 
   const isBroadcaster = role === 'broadcaster';
 

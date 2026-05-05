@@ -1,27 +1,41 @@
-# SafariCast Infrastructure
+# SafariCast: High-Performance P2P Screen Broadcasting
 
-High-performance, decentralized P2P screen broadcasting infrastructure built on modern WebRTC protocols for low-latency synchronization and encrypted signal routing.
+SafariCast is a sophisticated, low-latency screen sharing and broadcasting platform built on modern WebRTC primitives. Designed for high-stakes environments like remote coding collaboration, technical presentations, and secure data sharing, it prioritizes performance, privacy, and ease of use.
 
-## Key Features
+## 🚀 Core Philosophy
 
-- **P2P Mesh Topology**: Direct IP-to-IP routing ensures maximum throughput and minimum latency by bypassing central ingestion servers and cloud bottlenecks.
-- **Hardware-Level Acceleration**: Automatic GPU offloading for video encoding (VP9/AV1) reduces system-wide CPU overhead during high-resolution concurrent broadcasts.
-- **Carrier-Grade Security**: Mandatory DTLS 1.2 and SRTP protocol enforcement per frame ensures complete cryptographic privacy for all data in transit.
-- **Infrastructure Isolation**: signaling occurs over ephemeral Websocket handshakes, ensuring zero storage of session metadata or persistent payload logging.
-- **Elastic Bitrate Control**: Real-time network telemetry allows for dynamic resolution scaling from mobile-optimized 500kbps to raw 4K 15Mbps streams.
+Unlike centralized streaming services that route your data through crowded ingestion servers, SafariCast establishes **direct, encrypted tunnels** between you and your viewers. By eliminating the middleman, we achieve sub-frame latency and near-perfect visual fidelity.
 
-## Technical Implementation
+## ✨ Key Features
 
-### Signaling Layer
-SafariCast utilizes a centralized signaling engine to facilitate STUN/TURN handshakes but transitions to pure P2P immediately upon successful ICE candidate exchange. This reduces global signaling server load to O(k) where k is the number of active node handshakes.
+- **Decentralized P2P Mesh**: Leverages ICE (Interactive Connectivity Establishment) to find the fastest path between peers (STUN/TURN fallbacks included).
+- **Zero-Trust Security**: Every stream is wrapped in DTLS (Datagram Transport Layer Security) and SRTP (Secure Real-time Transport Protocol).
+- **Fluid Dynamic Scaling**: Operators can shift between quality presets (720p 15fps to 4K 60fps) on-the-fly without dropping the connection.
+- **Hardware-Accelerated Encoding**: Native browser-level GPU utilization for VP9 and H.264 ensures your CPU stays cool even during 4K broadcasts.
+- **Ephemeral Infrastructure**: Session metadata and signaling channels are non-persistent. Once a session ends, the "bridge" vanishes.
+- **Cross-Platform Navigation**: Tailored navigation logic for Android, iOS, and Desktop ensures a native-like experience on any device.
 
-### Encoding Pipeline
-The frontend implements `MediaStreamTrack.applyConstraints()` live during broadcasts to allow operators to shift between quality presets ('low', 'medium', 'high', 'source') without interrupting the session. Encoding parameters are tuned specifically for detailed screen-capture content.
+## 🛠 Technical Stack
 
-### Network Resiliency
-By leveraging HTTP long-polling fallbacks for Firestore and robust error-handling for WebRTC connection state changes (`failed`/`disconnected`), SafariCast maintains high availability even in restricted corporate network environments.
+- **Frontend**: React 18+ with TypeScript, styled with Tailwind CSS and Framer Motion.
+- **Signaling**: Socket.io (Node.js) for initial handshake orchestration.
+- **Database/Auth**: Firebase Firestore (Security Hardened) and Google Authentication.
+- **Media**: Native WebRTC APIs (`getDisplayMedia`, `RTCPeerConnection`, `MediaRecorder`).
+
+## 🔒 Security Measures
+
+SafariCast enforces several layers of security:
+1. **Firestore Rules**: Granular, attribute-based access control (ABAC) ensuring users can only manage their own rooms and profiles.
+2. **Identity Verification**: Mandatory Google Auth verification for broadcasters.
+3. **Encryption**: 256-bit AES encryption for all data packets in transit.
+4. **No Intermediaries**: Video data never touches a server (unless a TURN relay is required by network conditions, where it remains encrypted).
+
+## 📊 Roadmap
+
+- [ ] **AV1 Support**: Integration of the high-efficiency AV1 codec for improved quality at lower bitrates.
+- [ ] **Multi-Stream Ingress**: Allow multiple participants to share their screens simultaneously in a tiled view.
+- [ ] **QUIC Signaling**: Migrating from standard WebSockets to QUIC for even faster initial handshakes.
 
 ---
 
-&copy; 2026 SAFARICAST INFRASTRUCTURE. OPERATED BY DEFENSE MEDIA GROUP.
-UNAUTHORIZED USE OF THIS PROTOCOL FOR DATA EXFILTRATION IS PROHIBITED.
+*SafariCast is a standalone infrastructure project focused on advancing open-web communication standards. Built for speed, secured for privacy.*

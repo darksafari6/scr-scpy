@@ -1,10 +1,9 @@
 {
   "name": "SafariCast",
-  "description": "High-performance, decentralized P2P screen broadcasting infrastructure built on modern WebRTC protocols for low-latency synchronization.",
+  "description": "Secure, high-performance P2P screen broadcasting with zero-trust architecture and sub-frame latency.",
   "requestFramePermissions": [
     "camera",
-    "microphone",
-    "display-capture"
+    "microphone"
   ],
   "majorCapabilities": []
 }

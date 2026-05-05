@@ -8,6 +8,7 @@ service cloud.firestore {
 
     // Primitive Helpers
     function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { 
@@ -19,22 +20,25 @@ service cloud.firestore {
       return data.keys().hasAll(['email']) 
         && data.email is string && data.email.size() > 0 && data.email.size() <= 200
         && (data.get('displayName', '') is string) && (data.get('displayName', '').size() <= 100)
-        && (data.get('photoURL', '') is string) && (data.get('photoURL', '').size() <= 1000);
+        && (data.get('photoURL', '') is string) && (data.get('photoURL', '').size() <= 1000)
+        && (data.get('lastLoginAt', request.time) is timestamp);
     }
 
     function isValidRoom(data) {
       return data.keys().hasAll(['hostId', 'name', 'status'])
         && data.hostId is string && data.hostId == request.auth.uid
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
-        && data.status is string && data.status in ['active', 'ended'];
+        && data.status is string && data.status in ['active', 'ended']
+        && (data.get('createdAt', request.time) is timestamp)
+        && (data.get('endedAt', null) == null || data.get('endedAt', null) is timestamp);
     }
 
     // 1. Users Collection
     match /users/{userId} {
       // Validate the path id prevents poisoning
-      allow read: if isSignedIn() && isValidId(userId);
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
-      allow update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming())
+      allow read: if isVerified() && isValidId(userId);
+      allow create: if isVerified() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isVerified() && request.auth.uid == userId && isValidUser(incoming())
         && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'photoURL', 'lastLoginAt']);
     }
 
@@ -44,23 +48,23 @@ service cloud.firestore {
       allow get: if isValidId(roomId);
       
       // List queries are ONLY allowed for the owner (the Dashboard query)
-      allow list: if isSignedIn() && existing().hostId == request.auth.uid;
+      allow list: if isVerified() && existing().hostId == request.auth.uid;
 
-      allow create: if isSignedIn() 
+      allow create: if isVerified() 
         && isValidId(roomId)
         && isValidRoom(incoming())
         && incoming().hostId == request.auth.uid
         && incoming().createdAt == request.time;
 
-      allow update: if isSignedIn() 
+      allow update: if isVerified() 
         && isValidId(roomId)
         && existing().hostId == request.auth.uid
         && isValidRoom(incoming())
         && incoming().hostId == existing().hostId // Immutable owner
         && incoming().createdAt == existing().createdAt // Immutable timestamp
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'endedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'endedAt', 'name']);
 
-      allow delete: if isSignedIn() 
+      allow delete: if isVerified() 
         && isValidId(roomId)
         && existing().hostId == request.auth.uid;
     }

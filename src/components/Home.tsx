@@ -27,10 +27,10 @@ export function Home() {
     try {
       await loginWithGoogle();
     } catch (error: any) {
-      console.error(error);
       if (error.code === 'auth/popup-blocked') {
         alert('Popup blocked by your browser. Please allow popups for this site and try again.');
       } else if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
+        console.error(error);
         alert('Failed to sign in securely. Please ensure popups are allowed for this site and try again.');
       }
     } finally {
@@ -132,10 +132,14 @@ export function Home() {
         
         <div className="flex items-center gap-4">
           <div className="hidden lg:flex items-center gap-8 mr-8">
-            {['Architecture', 'Compliance', 'Specs', 'Pricing'].map((item) => (
-              <a key={item} href="#" className="text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-colors">
+            {['Technology', 'Security', 'Roadmap'].map((item) => (
+              <button 
+                key={item} 
+                onClick={() => document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+              >
                 {item}
-              </a>
+              </button>
             ))}
           </div>
           {!loading && (
@@ -175,28 +179,38 @@ export function Home() {
             className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-white text-[10px] md:text-xs font-mono uppercase tracking-[0.3em] backdrop-blur-xl shadow-2xl"
           >
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
             </span>
-            NETWORK PROTOCOL STABLE • v2.4.14
+            Direct P2P Signal • Latency Optimized
           </motion.div>
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.95] font-display">
-            The New Standard in <br className="hidden lg:block" />
+            High-Performance <br className="hidden lg:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white/90 to-white/20">
-              Visual Logic.
+              P2P Streaming.
             </span>
           </h1>
           <p className="text-lg md:text-2xl text-white/40 max-w-4xl mx-auto font-light leading-relaxed px-4">
-            A high-performance P2P broadcasting ecosystem designed for low-latency synchronization. SafariCast eliminates server overhead, ensuring your data stream remains private, unmetered, and instantaneous.
+            SafariCast leverages WebRTC to establish direct, encrypted connections between peers. Share your screen with zero intermediate server lag and military-grade AES-256 security.
           </p>
           <div className="flex flex-wrap justify-center gap-4 pt-4">
-            <button className="px-8 py-4 bg-white text-black font-bold rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-white/90 transition-all shadow-white/10 shadow-2xl">Get Started</button>
-            <button className="px-8 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-white/10 transition-all">Protocol Whitepaper</button>
+            <button 
+              onClick={() => document.getElementById('engine')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-8 py-4 bg-white text-black font-bold rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-white/90 transition-all shadow-white/10 shadow-2xl"
+            >
+              Learn More
+            </button>
+            <button 
+               onClick={handleLogin}
+               className="px-8 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+            >
+              Start Session
+            </button>
           </div>
         </motion.div>
 
         {/* Action Split Layout - 4D Box Style */}
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12 w-full max-w-6xl mb-48">
+        <div id="engine" className="grid md:grid-cols-2 gap-8 md:gap-12 w-full max-w-6xl mb-48">
           
           {/* Join Card */}
           <motion.div 
@@ -314,11 +328,12 @@ export function Home() {
 
         {/* Infrastructure Deep Dive */}
         <motion.div 
+          id="technology"
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 1 }}
-          className="w-full max-w-6xl mb-48 space-y-24"
+          className="w-full max-w-6xl mb-48 space-y-24 scroll-mt-32"
         >
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
             <div className="max-w-2xl space-y-6">
@@ -368,42 +383,43 @@ export function Home() {
 
         {/* Security & Compliance Warning */}
         <motion.div 
+          id="security"
           initial={{ opacity: 0, scale: 0.9 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 1 }}
-          className="w-full max-w-5xl mb-48 p-10 md:p-16 bg-red-950/10 border border-red-500/20 rounded-[3rem] relative overflow-hidden backdrop-blur-xl"
+          className="w-full max-w-5xl mb-48 p-10 md:p-16 bg-red-950/10 border border-red-500/20 rounded-[3rem] relative overflow-hidden backdrop-blur-xl scroll-mt-32"
         >
           <div className="absolute right-0 top-0 w-96 h-96 bg-red-500/5 rounded-full blur-[100px] pointer-events-none" />
           <div className="flex flex-col lg:flex-row gap-10 lg:items-center relative z-10">
             <div className="p-6 bg-red-500/10 rounded-3xl shrink-0 self-start border border-red-500/20">
-              <AlertTriangle className="w-10 h-10 text-red-500" />
+              <Shield className="w-10 h-10 text-red-500" />
             </div>
             <div className="space-y-6">
               <h3 className="text-2xl font-black text-red-100 tracking-tight flex items-center gap-3 font-display">
                 <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
-                RESTRICTED PROTOCOL NOTICE
+                SECURITY HARDENED ARCHITECTURE
               </h3>
               <div className="space-y-4 font-mono text-[11px] md:text-xs text-red-100/40 uppercase tracking-widest leading-relaxed">
                 <p>
-                  BY ACCESSING THE INFRASTRUCTURE, YOU ACKNOWLEDGE THE FOLLOWING CONDITIONS:
+                  SAFARICAST RUNS ON A ZERO-TRUST PRINCIPLE. YOUR DATA IS PROTECTED BY:
                 </p>
-                <p className="text-red-100/60 transition-colors hover:text-red-100">
-                  • ALL SIGNALING ASSETS ARE EPHEMERAL AND NOT STORED FOR LONG-TERM AUDIT.<br/>
-                  • UNAUTHORIZED PORT-MAPPING OR HANDSHAKE INTERCEPTION IS AUTOMATICALLY LOGGED.<br/>
-                  • DEVICE HARDWARE SIGNATURES ARE REQUIRED FOR BROADCASTER TOKEN VALIDATION.<br/>
-                  • ANY VIOLATION OF P2P STANDARDS RESULTS IN IMMEDIATE SEGMENT DE-AUTH.
+                <p className="text-red-100/60 transition-colors hover:text-red-100 uppercase">
+                  • END-TO-END ENCRYPTED DTLS/SRTP PEER CONNECTIONS.<br/>
+                  • SECURE GOOGLE-AUTH PROVIDER IDENTITY VALIDATION.<br/>
+                  • GRANULAR FIRESTORE SECURITY RULES PREVENTING DATA LEAKAGE.<br/>
+                  • STUN/TURN RELAY FALLBACKS WITH AES-256 PACKET WRAPPING.
                 </p>
               </div>
               <div className="pt-4 flex items-center gap-4 text-red-500 text-[10px] font-bold tracking-[0.4em]">
-                SYS_VERIFIED • ENFORCE_AES_256
+                ENCRYPTED • VERIFIED • EPHEMERAL
               </div>
             </div>
           </div>
         </motion.div>
 
         {/* Roadmap / Industry Section - Making it "Longer" */}
-        <div className="w-full max-w-6xl mb-48 space-y-24">
+        <div id="roadmap" className="w-full max-w-6xl mb-48 space-y-24 scroll-mt-32">
           <div className="text-center space-y-4">
              <h2 className="text-3xl md:text-5xl font-black tracking-tighter font-display uppercase">Technical Roadmap</h2>
              <p className="text-white/30 font-mono text-xs tracking-[0.3em] uppercase">Phase 4 Infrastructure Expansion</p>
@@ -424,7 +440,6 @@ export function Home() {
              ))}
           </div>
         </div>
-
       </main>
 
       {/* Footer */}
@@ -432,38 +447,37 @@ export function Home() {
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12 mb-20">
             <div className="space-y-6 max-w-xs">
               <div className="flex items-center gap-3">
-                <Share className="w-6 h-6 text-purple-400" />
+                <Share className="w-6 h-6 text-blue-400 font-bold" />
                 <span className="text-xl font-bold tracking-[0.4em] uppercase text-white">SafariCast</span>
               </div>
-              <p className="text-white/30 text-xs font-light leading-relaxed">The premier choice for unmetered, secure, peer-to-peer screen broadcasting for high-stakes environments.</p>
+              <p className="text-white/30 text-xs font-light leading-relaxed tracking-wide">The direct, low-latency screen broadcasting engine for high-stakes collaborative environments.</p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-16">
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-16">
               <div className="space-y-4">
                 <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest">Protocol</div>
-                <ul className="space-y-2 text-xs text-white/40 hover:text-white transition-colors">
-                  <li><a href="#">Whitepaper</a></li>
-                  <li><a href="#">Security Audit</a></li>
-                  <li><a href="#">Network Status</a></li>
+                <ul className="space-y-2 text-xs text-white/40">
+                  <li><button onClick={() => document.getElementById('security')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-white transition-colors">Security</button></li>
+                  <li><button onClick={() => document.getElementById('technology')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-white transition-colors">Infrastructure</button></li>
+                  <li><button onClick={() => document.getElementById('roadmap')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-white transition-colors">Roadmap</button></li>
                 </ul>
               </div>
               <div className="space-y-4">
-                <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest">Connect</div>
-                <ul className="space-y-2 text-xs text-white/40 hover:text-white transition-colors">
-                  <li><a href="#">Github</a></li>
-                  <li><a href="#">Documentation</a></li>
-                  <li><a href="#">API Ingress</a></li>
+                <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest">Developers</div>
+                <ul className="space-y-2 text-xs text-white/40">
+                  <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Open Source</a></li>
+                  <li><a href="#" className="hover:text-white transition-colors">Docs</a></li>
                 </ul>
               </div>
             </div>
          </div>
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 pt-12 border-t border-white/5">
-           <div className="text-white/20 text-[10px] font-mono tracking-widest text-center md:text-left">
-             <p>&copy; 2026 SAFARICAST INFRASTRUCTURE. OPERATED BY DEFENSE MEDIA GROUP.</p>
-           </div>
-           <div className="flex items-center gap-8">
-             <a href="#" className="text-white/20 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-mono">Priv_Policy</a>
-             <a href="#" className="text-white/20 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-mono">Eula_Terms</a>
-           </div>
+            <div className="text-white/20 text-[10px] font-mono tracking-widest text-center md:text-left uppercase">
+              <p>&copy; {new Date().getFullYear()} SafariCast Open Infrastructure Lab. All data remains anonymous.</p>
+            </div>
+            <div className="flex items-center gap-8">
+              <a href="#" className="text-white/20 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-mono">Security Policy</a>
+              <a href="#" className="text-white/20 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-mono">Usage Terms</a>
+            </div>
          </div>
       </footer>
     </div>

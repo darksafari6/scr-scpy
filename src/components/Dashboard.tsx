@@ -27,6 +27,7 @@ export function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [defaultQuality, setDefaultQuality] = useState<QualityPreset>((localStorage.getItem('safaricast_quality') as QualityPreset) || 'source');
   const [autoMuteMic, setAutoMuteMic] = useState<boolean>(localStorage.getItem('safaricast_mic') === 'true');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -76,13 +77,11 @@ export function Dashboard() {
     }
   };
 
-  const handleDeleteRoom = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    const confirmed = window.confirm("Are you sure you want to end and delete this streaming session forever?");
-    if (!confirmed) return;
+  const handleDeleteRoom = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'rooms', id));
       setRooms(prev => prev.filter(r => r.id !== id));
+      setDeleteConfirmId(null);
     } catch (err) {
       handleFirestoreError(err, 'delete', `rooms/${id}`);
     }
@@ -312,7 +311,10 @@ export function Dashboard() {
                         
                         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
                           <button 
-                            onClick={(e) => handleDeleteRoom(e, room.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmId(room.id);
+                            }}
                             className="p-4 bg-red-500/5 hover:bg-red-500/20 text-red-500/70 hover:text-red-400 border border-red-500/10 rounded-xl transition-all flex items-center justify-center"
                             title="Delete Session"
                           >
@@ -412,6 +414,35 @@ export function Dashboard() {
           </button>
         </div>
       </nav>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
+              <Trash2 className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-4">Confirm Deletion</h3>
+            <p className="text-white/60 mb-8 leading-relaxed">
+              Are you sure you want to end and delete this streaming session forever? This action cannot be undone.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold uppercase tracking-widest text-xs transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteRoom(deleteConfirmId)}
+                className="flex-1 py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)]"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
