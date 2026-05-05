@@ -3,9 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { db, handleFirestoreError } from '../lib/firebase';
 import { collection, query, getDocs, setDoc, doc, serverTimestamp, deleteDoc, where, Timestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Plus, Share, History, Video, ArrowRight, LayoutDashboard, Settings, Activity, Trash2, PanelLeftClose, PanelLeft, Monitor, Key } from 'lucide-react';
+import { LogOut, Plus, Share, History, Video, ArrowRight, LayoutDashboard, Settings, Activity, Trash2, PanelLeftClose, PanelLeft, Monitor, Key, AlertCircle } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { QualityPreset } from '../hooks/useWebRTC';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface Room {
   id: string;
@@ -28,6 +29,8 @@ export function Dashboard() {
   const [defaultQuality, setDefaultQuality] = useState<QualityPreset>((localStorage.getItem('safaricast_quality') as QualityPreset) || 'source');
   const [autoMuteMic, setAutoMuteMic] = useState<boolean>(localStorage.getItem('safaricast_mic') === 'true');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -77,13 +80,21 @@ export function Dashboard() {
     }
   };
 
-  const handleDeleteRoom = async (id: string) => {
+  const deleteRoom = async (id: string) => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    setError(null);
     try {
       await deleteDoc(doc(db, 'rooms', id));
       setRooms(prev => prev.filter(r => r.id !== id));
       setDeleteConfirmId(null);
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      setError(err.message || "Failed to delete session. Please try again.");
+      setDeleteConfirmId(null);
       handleFirestoreError(err, 'delete', `rooms/${id}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -290,46 +301,55 @@ export function Dashboard() {
                   </div>
                 ) : (
                   <div className="grid gap-4">
-                    {filteredAndSortedRooms.map(room => (
-                      <div key={room.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 bg-[#0a0a0a] border border-white/5 hover:border-white/20 rounded-2xl transition-all group gap-4">
-                        <div className="flex items-start sm:items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-                            <Video className="w-5 h-5 text-blue-400" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-3 mb-1">
-                              <h4 className="font-mono text-xl font-bold tracking-widest text-white">{room.id}</h4>
-                              {room.status === 'active' && (
-                                <span className="px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded text-[10px] uppercase font-bold tracking-wider">Active</span>
-                              )}
+                    <AnimatePresence mode="popLayout">
+                      {filteredAndSortedRooms.map(room => (
+                        <motion.div 
+                          key={room.id}
+                          layout
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9, x: -20 }}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 bg-[#0a0a0a] border border-white/5 hover:border-white/20 rounded-2xl transition-all group gap-4"
+                        >
+                          <div className="flex items-start sm:items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                              <Video className="w-5 h-5 text-blue-400" />
                             </div>
-                            <p className="text-white/40 text-xs font-mono uppercase tracking-wider">
-                              {room.createdAt?.toDate().toLocaleDateString()} · {room.createdAt?.toDate().toLocaleTimeString()}
-                            </p>
+                            <div>
+                              <div className="flex items-center gap-3 mb-1">
+                                <h4 className="font-mono text-xl font-bold tracking-widest text-white">{room.id}</h4>
+                                {room.status === 'active' && (
+                                  <span className="px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded text-[10px] uppercase font-bold tracking-wider">Active</span>
+                                )}
+                              </div>
+                              <p className="text-white/40 text-xs font-mono uppercase tracking-wider">
+                                {room.createdAt?.toDate().toLocaleDateString()} · {room.createdAt?.toDate().toLocaleTimeString()}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmId(room.id);
-                            }}
-                            className="p-4 bg-red-500/5 hover:bg-red-500/20 text-red-500/70 hover:text-red-400 border border-red-500/10 rounded-xl transition-all flex items-center justify-center"
-                            title="Delete Session"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => navigate(`/room/${room.id}`)}
-                            className="w-full sm:w-auto p-4 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-xl transition-all flex items-center justify-center gap-2"
-                          >
-                            <span className="uppercase text-xs tracking-widest font-bold">Rejoin Engine</span>
-                            <ArrowRight className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                          
+                          <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmId(room.id);
+                              }}
+                              className="p-4 bg-red-500/5 hover:bg-red-500/20 text-red-500/70 hover:text-red-400 border border-red-500/10 rounded-xl transition-all flex items-center justify-center"
+                              title="Delete Session"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => navigate(`/room/${room.id}`)}
+                              className="w-full sm:w-auto p-4 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-xl transition-all flex items-center justify-center gap-2"
+                            >
+                              <span className="uppercase text-xs tracking-widest font-bold">Rejoin Engine</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
@@ -426,18 +446,32 @@ export function Dashboard() {
             <p className="text-white/60 mb-8 leading-relaxed">
               Are you sure you want to end and delete this streaming session forever? This action cannot be undone.
             </p>
+            {error && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-sm">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <p>{error}</p>
+              </div>
+            )}
             <div className="flex gap-4">
               <button
-                onClick={() => setDeleteConfirmId(null)}
+                onClick={() => { setDeleteConfirmId(null); setError(null); }}
                 className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold uppercase tracking-widest text-xs transition-all"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteRoom(deleteConfirmId)}
-                className="flex-1 py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)]"
+                onClick={() => deleteRoom(deleteConfirmId)}
+                disabled={isDeleting}
+                className="flex-1 py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Delete
+                {isDeleting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </button>
             </div>
           </div>
